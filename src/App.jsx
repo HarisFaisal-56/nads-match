@@ -1,10 +1,36 @@
 import { useState, useCallback } from 'react';
-import { Settings } from 'lucide-react';
+import { useAccount, useDisconnect, useConnect } from 'wagmi';
+import { Settings, X, Wallet as WalletIcon } from 'lucide-react';
 import { useGameLogic } from './useGameLogic';
+import { useLeaderboard } from './useLeaderboard';
+import { useDailyCheckIn } from './useDailyCheckIn';
 import { MAX_LEVEL } from './constants';
+import { BUILDER_CODE } from './wagmi-config';
 import './index.css';
 
-// GameBoard component
+import baseLogo from './assets/base app logo.png';
+import metamaskLogo from './assets/metamask logo.png';
+import phantomLogo from './assets/phantom wallet logo.png';
+
+const getWalletAsset = (connector) => {
+  const name = connector.name.toLowerCase();
+  const id = connector.id.toLowerCase();
+  
+  if (name.includes('coinbase') || id.includes('coinbase')) {
+    return { name: 'Base App / Coinbase Wallet', src: baseLogo };
+  } else if (name.includes('metamask') || id.includes('metamask')) {
+    return { name: 'MetaMask', src: metamaskLogo };
+  } else if (name.includes('phantom') || id.includes('phantom')) {
+    return { name: 'Phantom Wallet', src: phantomLogo };
+  } else {
+    return { 
+      name: connector.name === 'Injected' ? 'Browser Extension' : connector.name, 
+      src: null 
+    };
+  }
+};
+
+// ── GameBoard component ─────────────────────────────────────────
 function GameBoard({ level, username, onWin, onLose, onGoHome }) {
   const [showSettings, setShowSettings] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -112,13 +138,73 @@ function GameBoard({ level, username, onWin, onLose, onGoHome }) {
   );
 }
 
+// ── Leaderboard Panel ───────────────────────────────────────────
+function LeaderboardPanel({ entries, onClose }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+        <h2 className="modal-title" style={{ fontSize: '1.6rem' }}>🏆 Leaderboard</h2>
+        {entries.length === 0 ? (
+          <p className="modal-score-text">No scores yet. Play a level!</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 16 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                <th style={{ padding: '8px 4px', textAlign: 'left', fontSize: '0.8rem', color: '#7f8c8d' }}>#</th>
+                <th style={{ padding: '8px 4px', textAlign: 'left', fontSize: '0.8rem', color: '#7f8c8d' }}>Player</th>
+                <th style={{ padding: '8px 4px', textAlign: 'right', fontSize: '0.8rem', color: '#7f8c8d' }}>Score</th>
+                <th style={{ padding: '8px 4px', textAlign: 'right', fontSize: '0.8rem', color: '#7f8c8d' }}>Lvl</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.slice(0, 10).map((e, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px 4px', fontWeight: 700 }}>{i + 1}</td>
+                  <td style={{ padding: '8px 4px', fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {e.username}
+                    {e.wallet && e.wallet !== '0x0000' && (
+                      <span style={{ display: 'block', fontSize: '0.7rem', color: '#7f8c8d' }}>
+                        {e.wallet.slice(0, 6)}…{e.wallet.slice(-4)}
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px 4px', textAlign: 'right', fontWeight: 700 }}>{e.score}</td>
+                  <td style={{ padding: '8px 4px', textAlign: 'right', color: '#7f8c8d' }}>{e.level}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="modal-actions" style={{ marginTop: 20 }}>
+          <button className="btn-pill btn-primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main App ────────────────────────────────────────────────────
 function App() {
   const [screen, setScreen] = useState('HOME');
   const [username, setUsername] = useState('');
   const [level, setLevel] = useState(1);
   const [lastScore, setLastScore] = useState(0);
   const [lastTarget, setLastTarget] = useState(0);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
+  // Wagmi wallet state
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  // Leaderboard
+  const { entries: leaderboardEntries, submitScore } = useLeaderboard();
+
+  // Daily check-in (keyed on connected wallet address)
+  const { hasCheckedInToday, streak, checkIn, isCheckingIn } = useDailyCheckIn(address);
+
+  // ── Callbacks ──
   const handleWin = useCallback((score, target) => {
     setLastScore(score);
     setLastTarget(target);
@@ -142,6 +228,13 @@ function App() {
   };
 
   const nextLevel = () => {
+    // Submit score to leaderboard on level completion
+    submitScore({
+      wallet: address || '0x0000',
+      username,
+      score: lastScore,
+      level,
+    });
     setLevel(l => Math.min(l + 1, MAX_LEVEL));
     setScreen('PLAYING');
   };
@@ -151,14 +244,78 @@ function App() {
     requestAnimationFrame(() => setScreen('PLAYING'));
   };
 
-  // ============ SCREEN 1: LOGIN ============
+  // ============ SCREEN 1: LOGIN / HOME ============
   if (screen === 'HOME') {
     return (
       <div className="login-wrapper">
         <div className="login-screen">
+          {/* Wallet connect at the top */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24, gap: 12 }}>
+            {isConnected ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '0.9rem', color: '#66bb6a', fontWeight: 800 }}>
+                  ✅ Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+                </span>
+                <button 
+                  className="btn-pill btn-outline" 
+                  style={{ padding: '8px 16px', fontSize: '0.9rem', width: 'auto' }} 
+                  onClick={() => disconnect()}
+                >
+                  Disconnect Wallet
+                </button>
+              </div>
+            ) : (
+              <button 
+                className="btn-pill btn-outline"
+                style={{ padding: '10px 20px', width: 'auto' }}
+                onClick={() => setShowWalletModal(true)}
+              >
+                Connect Wallet
+              </button>
+            )}
+          </div>
+
           <div className="login-icon">🍬</div>
           <h1 className="login-title">Nads Smash</h1>
           <p className="login-tagline">Match · Blast · Conquer</p>
+
+          {/* Daily Check-In (only visible when wallet is connected) */}
+          {isConnected && (
+            <div style={{ marginBottom: 20 }}>
+              <button
+                className="btn-pill btn-primary"
+                style={{
+                  background: hasCheckedInToday ? '#66bb6a' : undefined,
+                  cursor: hasCheckedInToday ? 'default' : 'pointer',
+                  opacity: isCheckingIn ? 0.7 : 1,
+                  marginBottom: 8,
+                }}
+                disabled={hasCheckedInToday || isCheckingIn}
+                onClick={checkIn}
+              >
+                {isCheckingIn
+                  ? 'Checking in…'
+                  : hasCheckedInToday
+                    ? '✅ Checked In Today'
+                    : '📅 Daily Check-In'}
+              </button>
+              {streak > 0 && (
+                <p style={{ fontSize: '0.85rem', color: '#7f8c8d', fontWeight: 600 }}>
+                  🔥 {streak}-day streak
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Leaderboard button */}
+          <button
+            className="btn-pill btn-outline"
+            style={{ marginBottom: 20 }}
+            onClick={() => setShowLeaderboard(true)}
+          >
+            🏆 Leaderboard
+          </button>
+
           <form onSubmit={startGame}>
             <div className="login-form-group">
               <label className="login-label">YOUR NAME</label>
@@ -176,7 +333,112 @@ function App() {
               Start Game &rarr;
             </button>
           </form>
+
+          {/* Builder code tag (visible for transparency) */}
+          <p style={{ marginTop: 16, fontSize: '0.7rem', color: '#bdbdbd' }}>
+            Builder: {BUILDER_CODE}
+          </p>
         </div>
+
+        {/* Leaderboard modal */}
+        {showLeaderboard && (
+          <LeaderboardPanel
+            entries={leaderboardEntries}
+            onClose={() => setShowLeaderboard(false)}
+          />
+        )}
+
+        {/* Wallet connection modal */}
+        {showWalletModal && !isConnected && (
+          <div className="modal-overlay">
+            <div className="modal-card" style={{ padding: '30px 30px', width: '90%', maxWidth: '400px', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+              
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <h2 className="modal-title" style={{ fontSize: '1.4rem', margin: 0, textAlign: 'left' }}>Select a Wallet</h2>
+                <button 
+                  onClick={() => setShowWalletModal(false)} 
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#7f8c8d' }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Wallet Options */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {(() => {
+                  const cbConnector = connectors.find(c => c.name.toLowerCase().includes('coinbase'));
+                  const others = connectors.filter(c => !c.name.toLowerCase().includes('coinbase'));
+
+                  return (
+                    <>
+                      {/* Coinbase Wallet Top Priority */}
+                      {cbConnector && (() => {
+                        const { name, src } = getWalletAsset(cbConnector);
+                        return (
+                          <button
+                            key={cbConnector.uid}
+                            onClick={() => {
+                              connect({ connector: cbConnector });
+                              setShowWalletModal(false);
+                            }}
+                            disabled={isPending}
+                            className="btn-pill btn-outline"
+                            style={{ 
+                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start', 
+                              padding: '12px 20px', gap: 16, 
+                              background: 'rgba(0, 82, 255, 0.05)', borderColor: '#0052FF' 
+                            }}
+                          >
+                            {src ? (
+                              <img src={src} alt={name} style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'contain' }} />
+                            ) : (
+                              <WalletIcon size={32} color="#0052FF" />
+                            )}
+                            <span style={{ fontWeight: 800, color: '#0052FF' }}>{name}</span>
+                          </button>
+                        );
+                      })()}
+
+                      {/* Divider */}
+                      {others.length > 0 && cbConnector && (
+                        <div style={{ height: 1, background: '#e0e0e0', margin: '8px 0' }} />
+                      )}
+
+                      {/* Other Wallets */}
+                      {others.map(c => {
+                        const { name, src } = getWalletAsset(c);
+                        
+                        return (
+                          <button
+                            key={c.uid}
+                            onClick={() => {
+                              connect({ connector: c });
+                              setShowWalletModal(false);
+                            }}
+                            disabled={isPending}
+                            className="btn-pill btn-outline"
+                            style={{ 
+                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start', 
+                              padding: '12px 20px', gap: 16 
+                            }}
+                          >
+                            {src ? (
+                              <img src={src} alt={name} style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'contain' }} />
+                            ) : (
+                              <WalletIcon size={32} color="#7f8c8d" />
+                            )}
+                            <span style={{ fontWeight: 700, color: '#2c3e50' }}>{name}</span>
+                          </button>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -203,6 +465,11 @@ function App() {
           <div className="stars">⭐⭐⭐</div>
           <h2 className="modal-title">Level Complete!</h2>
           <p className="modal-score-text">Score: {lastScore} / Target: {lastTarget}</p>
+          {isConnected && (
+            <p style={{ fontSize: '0.8rem', color: '#66bb6a', fontWeight: 600, marginBottom: 12 }}>
+              ✅ Score will be submitted to leaderboard
+            </p>
+          )}
           <div className="modal-actions">
             <button className="btn-pill btn-primary" onClick={nextLevel}>
               Next Level &rarr;
@@ -240,13 +507,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
-
