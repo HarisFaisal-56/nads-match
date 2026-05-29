@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAccount, useDisconnect, useConnect } from 'wagmi';
-import { Settings, X, Wallet as WalletIcon } from 'lucide-react';
+import { Settings, X, Wallet as WalletIcon, Hourglass } from 'lucide-react';
 import { useGameLogic } from './useGameLogic';
 import { useLeaderboard } from './useLeaderboard';
 import { useDailyCheckIn } from './useDailyCheckIn';
@@ -15,7 +15,7 @@ import phantomLogo from './assets/phantom wallet logo.png';
 const getWalletAsset = (connector) => {
   const name = connector.name.toLowerCase();
   const id = connector.id.toLowerCase();
-  
+
   if (name.includes('coinbase') || id.includes('coinbase')) {
     return { name: 'Base App / Coinbase Wallet', src: baseLogo };
   } else if (name.includes('metamask') || id.includes('metamask')) {
@@ -23,9 +23,9 @@ const getWalletAsset = (connector) => {
   } else if (name.includes('phantom') || id.includes('phantom')) {
     return { name: 'Phantom Wallet', src: phantomLogo };
   } else {
-    return { 
-      name: connector.name === 'Injected' ? 'Browser Extension' : connector.name, 
-      src: null 
+    return {
+      name: connector.name === 'Injected' ? 'Browser Extension' : connector.name,
+      src: null
     };
   }
 };
@@ -202,7 +202,7 @@ function App() {
   const { entries: leaderboardEntries, submitScore } = useLeaderboard();
 
   // Daily check-in (keyed on connected wallet address)
-  const { hasCheckedInToday, streak, checkIn, isCheckingIn } = useDailyCheckIn(address);
+  const { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive } = useDailyCheckIn(address);
 
   // ── Callbacks ──
   const handleWin = useCallback((score, target) => {
@@ -256,16 +256,16 @@ function App() {
                 <span style={{ fontSize: '0.9rem', color: '#66bb6a', fontWeight: 800 }}>
                   ✅ Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
                 </span>
-                <button 
-                  className="btn-pill btn-outline" 
-                  style={{ padding: '8px 16px', fontSize: '0.9rem', width: 'auto' }} 
+                <button
+                  className="btn-pill btn-outline"
+                  style={{ padding: '8px 16px', fontSize: '0.9rem', width: 'auto' }}
                   onClick={() => disconnect()}
                 >
                   Disconnect Wallet
                 </button>
               </div>
             ) : (
-              <button 
+              <button
                 className="btn-pill btn-outline"
                 style={{ padding: '10px 20px', width: 'auto' }}
                 onClick={() => setShowWalletModal(true)}
@@ -279,34 +279,6 @@ function App() {
           <h1 className="login-title">Nads Smash</h1>
           <p className="login-tagline">Match · Blast · Conquer</p>
 
-          {/* Daily Check-In (only visible when wallet is connected) */}
-          {isConnected && (
-            <div style={{ marginBottom: 20 }}>
-              <button
-                className="btn-pill btn-primary"
-                style={{
-                  background: hasCheckedInToday ? '#66bb6a' : undefined,
-                  cursor: hasCheckedInToday ? 'default' : 'pointer',
-                  opacity: isCheckingIn ? 0.7 : 1,
-                  marginBottom: 8,
-                }}
-                disabled={hasCheckedInToday || isCheckingIn}
-                onClick={checkIn}
-              >
-                {isCheckingIn
-                  ? 'Checking in…'
-                  : hasCheckedInToday
-                    ? '✅ Checked In Today'
-                    : '📅 Daily Check-In'}
-              </button>
-              {streak > 0 && (
-                <p style={{ fontSize: '0.85rem', color: '#7f8c8d', fontWeight: 600 }}>
-                  🔥 {streak}-day streak
-                </p>
-              )}
-            </div>
-          )}
-
           {/* Leaderboard button */}
           <button
             className="btn-pill btn-outline"
@@ -315,6 +287,63 @@ function App() {
           >
             🏆 Leaderboard
           </button>
+
+          {/* Daily Check-In button */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+            <button
+              className="btn-pill btn-outline"
+              style={{
+                cursor: (isConnected && isCooldownActive) ? 'default' : 'pointer',
+                opacity: (isConnected && isCheckingIn) ? 0.7 : 1,
+                marginBottom: 0,
+              }}
+              disabled={isConnected && (isCheckingIn || isCooldownActive)}
+              onClick={() => {
+                if (!isConnected) {
+                  alert('Please connect your wallet to check in!');
+                } else {
+                  checkIn();
+                }
+              }}
+            >
+              📅 {!isConnected ? 'Daily Check-In' :
+                isCheckingIn ? 'Checking in…' :
+                  (hasCheckedInToday || isCooldownActive) ? 'Checked In Today' :
+                    'Daily Check-In'}
+            </button>
+
+            {isConnected && (streak > 0 || isCooldownActive) && (
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '12px 16px',
+                marginTop: 12,
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+              }}>
+                <span style={{ fontWeight: 800, color: '#334155', fontSize: '0.95rem' }}>
+                  🔥 Streak: {streak} {streak === 1 ? 'Day' : 'Days'}
+                </span>
+                {isCooldownActive && timeUntilNextCheckIn ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b' }}>
+                    <Hourglass size={14} />
+                    <span style={{ fontSize: '0.8rem', fontFamily: '"Roboto Mono", "Courier New", monospace', fontWeight: 600 }}>
+                      {timeUntilNextCheckIn}
+                    </span>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.8rem', color: '#66bb6a', fontWeight: 700 }}>
+                    Check-in available!
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
           <form onSubmit={startGame}>
             <div className="login-form-group">
@@ -352,12 +381,12 @@ function App() {
         {showWalletModal && !isConnected && (
           <div className="modal-overlay">
             <div className="modal-card" style={{ padding: '30px 30px', width: '90%', maxWidth: '400px', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <h2 className="modal-title" style={{ fontSize: '1.4rem', margin: 0, textAlign: 'left' }}>Select a Wallet</h2>
-                <button 
-                  onClick={() => setShowWalletModal(false)} 
+                <button
+                  onClick={() => setShowWalletModal(false)}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#7f8c8d' }}
                 >
                   <X size={24} />
@@ -384,10 +413,10 @@ function App() {
                             }}
                             disabled={isPending}
                             className="btn-pill btn-outline"
-                            style={{ 
-                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start', 
-                              padding: '12px 20px', gap: 16, 
-                              background: 'rgba(0, 82, 255, 0.05)', borderColor: '#0052FF' 
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+                              padding: '12px 20px', gap: 16,
+                              background: 'rgba(0, 82, 255, 0.05)', borderColor: '#0052FF'
                             }}
                           >
                             {src ? (
@@ -408,7 +437,7 @@ function App() {
                       {/* Other Wallets */}
                       {others.map(c => {
                         const { name, src } = getWalletAsset(c);
-                        
+
                         return (
                           <button
                             key={c.uid}
@@ -418,9 +447,9 @@ function App() {
                             }}
                             disabled={isPending}
                             className="btn-pill btn-outline"
-                            style={{ 
-                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start', 
-                              padding: '12px 20px', gap: 16 
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+                              padding: '12px 20px', gap: 16
                             }}
                           >
                             {src ? (
@@ -447,7 +476,7 @@ function App() {
   if (screen === 'PLAYING') {
     return (
       <GameBoard
-        key={`level-${level}-${Date.now()}`}
+        key={`level-${level}`}
         level={level}
         username={username}
         onWin={handleWin}

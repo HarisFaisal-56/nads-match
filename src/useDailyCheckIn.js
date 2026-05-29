@@ -1,82 +1,187 @@
-/**
- * useDailyCheckIn — Tracks daily check-in state per wallet address.
- *
- * Uses localStorage keyed by wallet address. The structure is ready
- * to be wired to a smart-contract (just replace the localStorage
- * calls with contract read/write interactions).
- */
 import { useState, useCallback, useEffect } from 'react';
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 
-const STORAGE_PREFIX = 'nads_checkin_';
+const CONTRACT_ADDRESS = '0x5Eb052595535026DcA682059B946f6949a878885';
 
-function getTodayKey() {
-  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-}
-
-function getCheckInData(wallet) {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + wallet);
-    return raw ? JSON.parse(raw) : { lastCheckIn: null, streak: 0 };
-  } catch {
-    return { lastCheckIn: null, streak: 0 };
+const CHECK_IN_ABI = [
+  {
+    "inputs": [],
+    "name": "checkIn",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "lastCheckIn",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "streak",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
-}
-
-function saveCheckInData(wallet, data) {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + wallet, JSON.stringify(data));
-  } catch {
-    // silently ignore
-  }
-}
+];
 
 export function useDailyCheckIn(walletAddress) {
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [streak, setStreak] = useState(0);
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [timeUntilNextCheckIn, setTimeUntilNextCheckIn] = useState(null);
+  const [isCooldownActive, setIsCooldownActive] = useState(false);
 
-  // Load state on mount or when wallet changes
+  const { data: lastCheckInBN, refetch: refetchLastCheckIn } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CHECK_IN_ABI,
+    functionName: 'lastCheckIn',
+    args: walletAddress ? [walletAddress] : undefined,
+    query: {
+      enabled: !!walletAddress,
+    },
+  });
+
+  const { data: streakBN, refetch: refetchStreak } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CHECK_IN_ABI,
+    functionName: 'streak',
+    args: walletAddress ? [walletAddress] : undefined,
+    query: {
+      enabled: !!walletAddress,
+    },
+  });
+
   useEffect(() => {
     if (!walletAddress) {
       setHasCheckedInToday(false);
       setStreak(0);
       return;
     }
-    const data = getCheckInData(walletAddress);
-    const today = getTodayKey();
-    setHasCheckedInToday(data.lastCheckIn === today);
-    setStreak(data.streak || 0);
-  }, [walletAddress]);
 
-  /**
-   * Perform the daily check-in.
-   * In production this would call a smart-contract function;
-   * for now it writes to localStorage.
-   */
-  const checkIn = useCallback(async () => {
-    if (!walletAddress || hasCheckedInToday) return;
+    if (lastCheckInBN !== undefined) {
+      const lastTs = Number(lastCheckInBN) * 1000;
+      if (lastTs === 0) {
+        setHasCheckedInToday(false);
+      } else {
+        const today = new Date().toISOString().slice(0, 10);
+        const lastCheckInDay = new Date(lastTs).toISOString().slice(0, 10);
+        setHasCheckedInToday(today === lastCheckInDay);
+      }
+    }
 
-    setIsCheckingIn(true);
+    if (streakBN !== undefined) {
+      setStreak(Number(streakBN));
+    }
+  }, [walletAddress, lastCheckInBN, streakBN]);
 
-    // Simulate a brief async delay (mirrors future tx confirmation)
-    await new Promise((r) => setTimeout(r, 600));
+  useEffect(() => {
+    if (!lastCheckInBN) {
+      setIsCooldownActive(false);
+      setTimeUntilNextCheckIn(null);
+      return;
+    }
 
-    const data = getCheckInData(walletAddress);
-    const today = getTodayKey();
-    const yesterday = new Date(Date.now() - 86400000)
-      .toISOString()
-      .slice(0, 10);
+    const lastTs = Number(lastCheckInBN);
+    if (lastTs === 0) {
+      setIsCooldownActive(false);
+      setTimeUntilNextCheckIn(null);
+      return;
+    }
 
-    const newStreak =
-      data.lastCheckIn === yesterday ? (data.streak || 0) + 1 : 1;
+    const targetTime = lastTs + 86400;
 
-    const updated = { lastCheckIn: today, streak: newStreak };
-    saveCheckInData(walletAddress, updated);
+    const updateTimer = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const remaining = targetTime - now;
 
-    setHasCheckedInToday(true);
-    setStreak(newStreak);
-    setIsCheckingIn(false);
-  }, [walletAddress, hasCheckedInToday]);
+      if (remaining > 0) {
+        setIsCooldownActive(true);
+        const h = Math.floor(remaining / 3600).toString().padStart(2, '0');
+        const m = Math.floor((remaining % 3600) / 60).toString().padStart(2, '0');
+        const s = (remaining % 60).toString().padStart(2, '0');
+        setTimeUntilNextCheckIn(`${h}:${m}:${s}`);
+      } else {
+        setIsCooldownActive(false);
+        setTimeUntilNextCheckIn(null);
+      }
+    };
 
-  return { hasCheckedInToday, streak, checkIn, isCheckingIn };
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [lastCheckInBN]);
+
+  const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract();
+
+  const { isLoading: isWaiting, isSuccess, isError: isReceiptError } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  const isCheckingIn = isPending || isWaiting;
+
+  useEffect(() => {
+    if (isSuccess) {
+      // Immediately refetch
+      refetchLastCheckIn();
+      refetchStreak();
+      
+      // Delay to handle RPC sync/propagation issues and refetch again
+      const timer = setTimeout(() => {
+        refetchLastCheckIn();
+        refetchStreak();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, refetchLastCheckIn, refetchStreak]);
+
+  useEffect(() => {
+    if (writeError) {
+      console.error('Error initiating check-in transaction:', writeError);
+    }
+    if (isReceiptError) {
+      console.error('Check-in transaction failed on-chain.');
+    }
+  }, [writeError, isReceiptError]);
+
+  const checkIn = useCallback(() => {
+    if (!walletAddress || hasCheckedInToday || isCheckingIn || isCooldownActive) return;
+    try {
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: CHECK_IN_ABI,
+        functionName: 'checkIn',
+      });
+    } catch (err) {
+      console.error('Failed to call checkIn:', err);
+    }
+  }, [walletAddress, hasCheckedInToday, isCheckingIn, isCooldownActive, writeContract]);
+
+  return { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive };
 }

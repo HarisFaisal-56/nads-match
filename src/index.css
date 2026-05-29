@@ -23,6 +23,7 @@ body {
   height: 100%;
   font-family: 'Nunito', sans-serif;
   background: var(--bg-gradient);
+  background-attachment: fixed;
   color: var(--text-dark);
   overflow: hidden;
   user-select: none;
@@ -33,9 +34,7 @@ body {
   height: 100%;
 }
 
-/* =========================================
-   BUTTONS & INPUTS
-========================================= */
+/* ─── BUTTONS & INPUTS ─────────────────────────────────────── */
 .btn-pill {
   border-radius: 9999px;
   padding: 14px 28px;
@@ -60,8 +59,8 @@ body {
 
 .btn-primary:hover {
   background: var(--blue-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.4);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(33, 150, 243, 0.5);
 }
 
 .btn-outline {
@@ -83,18 +82,18 @@ body {
   font-weight: 600;
   width: 100%;
   color: var(--text-dark);
+  background: var(--white);
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   text-align: center;
 }
 
 .input-pill:focus {
   border-color: var(--blue-primary);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
 }
 
-/* =========================================
-   SCREEN 1: LOGIN
-========================================= */
+/* ─── LOGIN SCREEN ─────────────────────────────────────────── */
 .login-wrapper {
   width: 100%;
   height: 100%;
@@ -107,11 +106,25 @@ body {
   background: var(--white);
   padding: 50px 40px;
   border-radius: 24px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 20px rgba(168, 85, 247, 0.2);
   width: 90%;
   max-width: 420px;
   text-align: center;
   animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  position: relative;
+}
+
+.login-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.6), rgba(156, 39, 176, 0.6));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 @keyframes popIn {
@@ -119,7 +132,6 @@ body {
     opacity: 0;
     transform: scale(0.9);
   }
-
   100% {
     opacity: 1;
     transform: scale(1);
@@ -163,9 +175,7 @@ body {
   letter-spacing: 1px;
 }
 
-/* =========================================
-   SCREEN 2: GAME
-========================================= */
+/* ─── GAME SCREEN ──────────────────────────────────────────── */
 .game-layout {
   position: fixed;
   top: 0;
@@ -176,6 +186,7 @@ body {
   flex-direction: column;
 }
 
+/* ─── HUD BAR ──────────────────────────────────────────────── */
 .hud-bar {
   background: var(--white);
   width: 100%;
@@ -226,6 +237,10 @@ body {
   font-weight: 900;
   color: var(--text-dark);
   line-height: 1.1;
+}
+
+.hud-value.danger {
+  color: #e53935;
 }
 
 .hud-progress-wrap {
@@ -293,6 +308,7 @@ body {
   font-size: 11px;
 }
 
+/* ─── BOARD AREA ───────────────────────────────────────────── */
 .board-area {
   flex: 1;
   min-height: 0;
@@ -316,8 +332,12 @@ body {
   width: 100%;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
+/* ─── TILES ────────────────────────────────────────────────── */
 .tile {
   width: 100%;
   height: 100%;
@@ -327,35 +347,29 @@ body {
   background-repeat: no-repeat;
   cursor: grab;
   box-shadow: 0 4px 0px rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.15);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
   outline: 2px solid rgba(255, 255, 255, 0.3);
   outline-offset: -2px;
-
-}
-
-.tile:hover:not(.empty) {
-  transform: scale(1.07) translateY(-3px);
-  box-shadow: 0 7px 0px rgba(0, 0, 0, 0.2), 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-
-.tile:active {
-  cursor: grabbing;
 }
 
 .tile:hover:not(.empty) {
   transform: scale(1.06);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18);
+  z-index: 2;
+}
+
+.tile:active {
+  cursor: grabbing;
 }
 
 .tile.empty {
   background: transparent;
   box-shadow: none;
+  outline: none;
+  cursor: default;
+  pointer-events: none;
 }
 
-/* =========================================
-   SCREEN 3: MODAL
-========================================= */
+/* ─── MODAL / OVERLAY ──────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -364,6 +378,7 @@ body {
   bottom: 0;
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -405,4 +420,36 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* ─── RESPONSIVE ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .hud-bar {
+    padding: 10px 16px;
+    height: 64px;
+  }
+
+  .hud-value {
+    font-size: 1.4rem;
+  }
+
+  .hud-progress-wrap {
+    max-width: 130px;
+  }
+
+  .board {
+    gap: 5px;
+    padding: 10px;
+    max-height: calc(100vh - 100px);
+    max-width: calc(100vh - 100px);
+  }
+
+  .board-area {
+    padding: 30px 10px 10px 10px;
+  }
+
+  .user-tag {
+    top: 72px;
+    left: 16px;
+  }
 }
