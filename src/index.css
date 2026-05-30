@@ -20,13 +20,15 @@
 html,
 body {
   width: 100%;
-  height: 100%;
+  height: 100dvh;
   font-family: 'Nunito', sans-serif;
   background: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text-dark);
   overflow: hidden;
   user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 #root {
@@ -49,28 +51,65 @@ body {
   justify-content: center;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .btn-primary {
   background: var(--blue-primary);
   color: var(--white);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  box-shadow: 0 0 15px rgba(33, 150, 243, 0.5) !important;
+  transition: all 0.2s ease !important;
 }
 
 .btn-primary:hover {
   background: var(--blue-hover);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 20px rgba(33, 150, 243, 0.5);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 0 25px rgba(33, 150, 243, 0.8) !important;
+}
+
+.btn-primary:active {
+  transform: scale(0.96) !important;
 }
 
 .btn-outline {
   background: transparent;
   color: var(--text-gray);
   border: 2px solid #e0e0e0;
+  transition: all 0.2s ease !important;
 }
 
 .btn-outline:hover {
   background: rgba(0, 0, 0, 0.03);
+  border-color: #a855f7 !important;
+  color: #a855f7 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4) !important;
+}
+
+.btn-outline:active {
+  transform: scale(0.96) !important;
+}
+
+.btn-success {
+  background: #43a047;
+  color: var(--white);
+  box-shadow: 0 4px 12px rgba(67, 160, 71, 0.35);
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .input-pill {
@@ -95,20 +134,26 @@ body {
 
 /* ─── LOGIN SCREEN ─────────────────────────────────────────── */
 .login-wrapper {
-  width: 100%;
-  height: 100%;
+  min-height: 100dvh;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
 }
 
 .login-screen {
   background: var(--white);
-  padding: 50px 40px;
+  padding: 32px 24px;
   border-radius: 24px;
   box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2), 0 0 20px rgba(168, 85, 247, 0.2);
-  width: 90%;
-  max-width: 420px;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  min-height: unset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   text-align: center;
   animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   position: relative;
@@ -132,6 +177,7 @@ body {
     opacity: 0;
     transform: scale(0.9);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -181,14 +227,14 @@ body {
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
 
 /* ─── HUD BAR ──────────────────────────────────────────────── */
 .hud-bar {
-  background: var(--white);
+  background: linear-gradient(to right, #ede9fe, #dbeafe);
   width: 100%;
   padding: 12px 40px;
   display: flex;
@@ -324,11 +370,11 @@ body {
   grid-template-rows: repeat(8, 1fr);
   gap: 10px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.45);
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
   border-radius: 24px;
   aspect-ratio: 1 / 1;
-  max-height: calc(100vh - 130px);
-  max-width: calc(100vh - 130px);
+  max-height: calc(100dvh - 130px);
+  max-width: calc(100dvh - 130px);
   width: 100%;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(8px);
@@ -440,8 +486,8 @@ body {
   .board {
     gap: 5px;
     padding: 10px;
-    max-height: calc(100vh - 100px);
-    max-width: calc(100vh - 100px);
+    max-height: calc(100dvh - 100px);
+    max-width: calc(100dvh - 100px);
   }
 
   .board-area {
@@ -451,5 +497,22 @@ body {
   .user-tag {
     top: 72px;
     left: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-card {
+    padding: 24px 20px;
+  }
+
+  .modal-title {
+    font-size: 1.8rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .board {
+    gap: 2px;
+    padding: 8px;
   }
 }

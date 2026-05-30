@@ -1,55 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 
-const CONTRACT_ADDRESS = '0x5Eb052595535026DcA682059B946f6949a878885';
-
-const CHECK_IN_ABI = [
-  {
-    "inputs": [],
-    "name": "checkIn",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "lastCheckIn",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "streak",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
+import { GAME_CONTRACT_ADDRESS, GAME_CONTRACT_ABI } from './constants';
 
 export function useDailyCheckIn(walletAddress) {
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
@@ -58,8 +10,8 @@ export function useDailyCheckIn(walletAddress) {
   const [isCooldownActive, setIsCooldownActive] = useState(false);
 
   const { data: lastCheckInBN, refetch: refetchLastCheckIn } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: CHECK_IN_ABI,
+    address: GAME_CONTRACT_ADDRESS,
+    abi: GAME_CONTRACT_ABI,
     functionName: 'lastCheckIn',
     args: walletAddress ? [walletAddress] : undefined,
     query: {
@@ -68,8 +20,8 @@ export function useDailyCheckIn(walletAddress) {
   });
 
   const { data: streakBN, refetch: refetchStreak } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: CHECK_IN_ABI,
+    address: GAME_CONTRACT_ADDRESS,
+    abi: GAME_CONTRACT_ABI,
     functionName: 'streak',
     args: walletAddress ? [walletAddress] : undefined,
     query: {
@@ -174,8 +126,8 @@ export function useDailyCheckIn(walletAddress) {
     if (!walletAddress || hasCheckedInToday || isCheckingIn || isCooldownActive) return;
     try {
       writeContract({
-        address: CONTRACT_ADDRESS,
-        abi: CHECK_IN_ABI,
+        address: GAME_CONTRACT_ADDRESS,
+        abi: GAME_CONTRACT_ABI,
         functionName: 'checkIn',
       });
     } catch (err) {

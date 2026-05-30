@@ -61,9 +61,15 @@ const findAllMatches = (b) => {
   }
 
   if (comet && matched.size > 0) {
-    for (let i = 0; i < 8; i++) {
-      const r = Math.floor(Math.random() * BOARD_SIZE * BOARD_SIZE);
-      if (b[r]) matched.add(r);
+    const available = [];
+    for (let i = 0; i < BOARD_SIZE * BOARD_SIZE; i++) {
+      if (b[i] && !matched.has(i)) available.push(i);
+    }
+    // Select up to 8 unique unmatched tiles
+    for (let i = 0; i < 8 && available.length > 0; i++) {
+      const randIdx = Math.floor(Math.random() * available.length);
+      matched.add(available[randIdx]);
+      available.splice(randIdx, 1); // remove so we don't pick it again
     }
   }
 
@@ -169,6 +175,14 @@ export const useGameLogic = (level, onLevelComplete, onGameOver) => {
       setMoves(m => m - 1);
       setIsProcessing(true);
       setTimeout(() => processCascade(newBoard), 200);
+    } else {
+      // Invalid swap: visually show the swap, then revert back to original
+      setBoard([...newBoard]);
+      setIsProcessing(true);
+      setTimeout(() => {
+        setBoard([...board]);
+        setIsProcessing(false);
+      }, 300);
     }
   }, [board, isProcessing, moves, processCascade]);
 
