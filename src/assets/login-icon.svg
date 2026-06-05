@@ -1,0 +1,18 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="48" height="48" rx="12" fill="url(#login-grad)"/>
+  <rect x="1" y="1" width="46" height="46" rx="11" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  
+  <path d="M 21 12 C 18 12, 16 14, 16 17 L 16 31 C 16 34, 18 36, 21 36 L 27 36 C 30 36, 32 34, 32 31 L 32 17 C 32 14, 30 12, 27 12 Z" fill="#1A1B1F"/>
+  
+  <!-- Notch cutouts -->
+  <path d="M 16 22 L 18 22 L 18 26 L 16 26 Z" fill="url(#login-grad)"/>
+  <path d="M 32 20 L 30 20 L 30 24 L 32 24 Z" fill="url(#login-grad)"/>
+
+  <defs>
+    <linearGradient id="login-grad" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6B9E"/>
+      <stop offset="50%" stop-color="#D478FF"/>
+      <stop offset="100%" stop-color="#4DB8FF"/>
+    </linearGradient>
+  </defs>
+</svg>

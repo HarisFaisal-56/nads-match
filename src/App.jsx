@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAccount, useDisconnect, useConnect } from 'wagmi';
-import { Settings, X, Wallet as WalletIcon, Hourglass, LogOut } from 'lucide-react';
+import { Settings, X, Hourglass, LogOut } from 'lucide-react';
 import { useGameLogic } from './useGameLogic';
 import { useLeaderboard } from './useLeaderboard';
 import { useOnChainLeaderboard } from './useOnChainLeaderboard';
@@ -8,31 +8,13 @@ import { useDailyCheckIn } from './useDailyCheckIn';
 import { MAX_LEVEL } from './constants';
 import GameOver from './GameOver';
 import LevelComplete from './LevelComplete';
+import WalletModal from './WalletModal';
 import { BUILDER_CODE } from './wagmi-config';
 import './index.css';
 
-import baseLogo from './assets/base app logo.png';
-import metamaskLogo from './assets/metamask logo.png';
-import phantomLogo from './assets/phantom wallet logo.png';
 import gameLogo from './assets/game-logo.png';
 
-const getWalletAsset = (connector) => {
-  const name = connector.name.toLowerCase();
-  const id = connector.id.toLowerCase();
 
-  if (name.includes('coinbase') || id.includes('coinbase')) {
-    return { name: 'Base App / Coinbase Wallet', src: baseLogo };
-  } else if (name.includes('metamask') || id.includes('metamask')) {
-    return { name: 'MetaMask', src: metamaskLogo };
-  } else if (name.includes('phantom') || id.includes('phantom')) {
-    return { name: 'Phantom Wallet', src: phantomLogo };
-  } else {
-    return {
-      name: connector.name === 'Injected' ? 'Browser Extension' : connector.name,
-      src: null
-    };
-  }
-};
 
 // ── GameBoard component ─────────────────────────────────────────
 function GameBoard({ level, username, onWin, onLose, onGoHome }) {
@@ -543,96 +525,10 @@ function App() {
         )}
 
         {/* Wallet connection modal */}
-        {showWalletModal && !isConnected && (
-          <div className="modal-overlay">
-            <div className="modal-card" style={{ padding: '30px 30px', width: '90%', maxWidth: '400px', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-
-              {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <h2 className="modal-title" style={{ fontSize: '1.4rem', margin: 0, textAlign: 'left' }}>Select a Wallet</h2>
-                <button
-                  onClick={() => setShowWalletModal(false)}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#7f8c8d' }}
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              {/* Wallet Options */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {(() => {
-                  const cbConnector = connectors.find(c => c.name.toLowerCase().includes('coinbase'));
-                  const others = connectors.filter(c => !c.name.toLowerCase().includes('coinbase'));
-
-                  return (
-                    <>
-                      {/* Coinbase Wallet Top Priority */}
-                      {cbConnector && (() => {
-                        const { name, src } = getWalletAsset(cbConnector);
-                        return (
-                          <button
-                            key={cbConnector.uid}
-                            onClick={() => {
-                              connect({ connector: cbConnector });
-                              setShowWalletModal(false);
-                            }}
-                            disabled={isPending}
-                            className="btn-pill btn-outline"
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
-                              padding: '12px 20px', gap: 16,
-                              background: 'rgba(0, 82, 255, 0.05)', borderColor: '#0052FF'
-                            }}
-                          >
-                            {src ? (
-                              <img src={src} alt={name} style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'contain', flexShrink: 0 }} />
-                            ) : (
-                              <WalletIcon size={32} color="#0052FF" style={{ flexShrink: 0 }} />
-                            )}
-                            <span style={{ fontWeight: 800, color: '#0052FF', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{name}</span>
-                          </button>
-                        );
-                      })()}
-
-                      {/* Divider */}
-                      {others.length > 0 && cbConnector && (
-                        <div style={{ height: 1, background: '#e0e0e0', margin: '8px 0' }} />
-                      )}
-
-                      {/* Other Wallets */}
-                      {others.map(c => {
-                        const { name, src } = getWalletAsset(c);
-
-                        return (
-                          <button
-                            key={c.uid}
-                            onClick={() => {
-                              connect({ connector: c });
-                              setShowWalletModal(false);
-                            }}
-                            disabled={isPending}
-                            className="btn-pill btn-outline"
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
-                              padding: '12px 20px', gap: 16
-                            }}
-                          >
-                            {src ? (
-                              <img src={src} alt={name} style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'contain', flexShrink: 0 }} />
-                            ) : (
-                              <WalletIcon size={32} color="#7f8c8d" style={{ flexShrink: 0 }} />
-                            )}
-                            <span style={{ fontWeight: 700, color: '#2c3e50', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{name}</span>
-                          </button>
-                        );
-                      })}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
+        <WalletModal
+          isOpen={showWalletModal && !isConnected}
+          onClose={() => setShowWalletModal(false)}
+        />
       </div>
     );
   }

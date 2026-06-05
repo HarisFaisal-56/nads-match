@@ -1,0 +1,459 @@
+/* ─── WALLET MODAL ────────────────────────────────────────────── */
+
+/* Backdrop */
+.wm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.15); /* Lightened so home screen is visible */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+  animation: wm-fadeIn 0.2s ease;
+}
+
+@keyframes wm-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Container */
+.wm-container {
+  max-width: 740px;
+  width: 92vw;
+  display: flex;
+  flex-direction: row;
+  background: #1a1b1f;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  position: relative;
+  animation: wm-slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes wm-slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Close button */
+.wm-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.15s;
+}
+.wm-close:hover {
+  color: #fff;
+}
+
+/* ─── LEFT PANEL ──────────────────────────────────────────────── */
+.wm-left {
+  width: 55%;
+  padding: 28px 24px;
+  background: #1a1b1f;
+  display: flex;
+  flex-direction: column;
+  min-height: 440px;
+}
+
+.wm-left-header {
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+/* Section labels */
+.wm-section-label {
+  color: #0bd6d6;
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.wm-section-label.popular {
+  margin-top: 16px;
+}
+
+/* Divider between Installed and Popular */
+.wm-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin: 12px 0;
+}
+
+/* ─── Wallet row ──────────────────────────────────────────────── */
+.wm-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.wm-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Wallet icon (img) */
+.wm-row-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Letter-circle fallback for broken / missing icons */
+.wm-row-icon-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 50%;
+}
+
+/* Name + Recent badge wrapper */
+.wm-row-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.wm-row-name {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* "Recent" badge */
+.wm-row-recent {
+  color: #0bd6d6;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* Spinner shown on active/connecting row */
+.wm-row-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: wm-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes wm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Wallet list scrollable area */
+.wm-wallet-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.wm-wallet-list::-webkit-scrollbar {
+  width: 4px;
+}
+.wm-wallet-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.wm-wallet-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* ─── WalletConnect button at bottom ──────────────────────────── */
+.wm-wc-btn {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.wm-wc-btn button {
+  width: 100%;
+  padding: 11px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.wm-wc-btn button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.wm-wc-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.wm-wc-text {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ─── RIGHT PANEL ─────────────────────────────────────────────── */
+.wm-right {
+  width: 45%;
+  padding: 28px 24px;
+  background: #1a1b1f;
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+}
+
+.wm-right-header {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+/* ─── Feature blocks (icon-left-of-text layout) ───────────────── */
+.wm-feature {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+  text-align: left;
+  width: 100%;
+}
+
+/* Image Icons */
+.wm-feature-icon-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.wm-feature-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wm-feature-heading {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wm-feature-body {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 1.55;
+  max-width: 240px;
+}
+
+/* Get a Wallet button */
+.wm-get-wallet {
+  width: 100%;
+  background: #0bd6d6;
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  padding: 11px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.wm-get-wallet:hover {
+  background: #0ac2c2;
+}
+
+/* Learn More link */
+.wm-learn-more {
+  color: #0bd6d6;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+.wm-learn-more:hover {
+  color: #0ac2c2;
+  text-decoration: underline;
+}
+
+/* ─── GET A WALLET VIEW ───────────────────────────────────────── */
+.wm-get-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.wm-back-btn {
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #0bd6d6;
+  font-size: 24px;
+  line-height: 1;
+  padding: 0 10px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.wm-back-btn:hover {
+  color: #0ac2c2;
+}
+
+.wm-get-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.wm-get-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: none;
+  gap: 12px;
+  text-align: left;
+}
+
+.wm-get-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.wm-get-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.wm-get-name {
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.wm-get-desc {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.wm-get-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #0bd6d6;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.wm-get-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.wm-get-footer {
+  margin-top: auto;
+  padding-top: 24px;
+  text-align: center;
+}
+
+.wm-get-footer-title {
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.wm-get-footer-desc {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ─── MOBILE ──────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .wm-container {
+    flex-direction: column;
+    max-width: none;
+    width: 92vw;
+    border-radius: 12px;
+    max-height: 85dvh;
+  }
+
+  .wm-left {
+    width: 100%;
+    min-height: unset;
+  }
+
+  .wm-right {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding: 16px 24px;
+    gap: 12px;
+  }
+
+  /* Hide illustration and feature blocks on mobile */
+  .wm-illustration,
+  .wm-feature {
+    display: none;
+  }
+}

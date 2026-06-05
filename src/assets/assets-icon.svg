@@ -1,0 +1,39 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="48" height="48" rx="12" fill="#1A1B1F"/>
+  <rect x="1" y="1" width="46" height="46" rx="11" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+  
+  <!-- Top Left: Rainbow -->
+  <g transform="translate(6, 6)">
+    <rect width="16" height="16" rx="4" fill="#0052FF"/>
+    <path d="M 2 16 C 2 9, 7 4, 14 4" stroke="#FF494A" stroke-width="2" fill="none"/>
+    <path d="M 2 16 C 2 11, 6 7, 11 7" stroke="#FF8A00" stroke-width="2" fill="none"/>
+    <path d="M 2 16 C 2 13, 4 10, 8 10" stroke="#00C853" stroke-width="2" fill="none"/>
+  </g>
+
+  <!-- Top Right: Pixel Monkey -->
+  <g transform="translate(26, 6)">
+    <rect width="16" height="16" rx="4" fill="#FFC107"/>
+    <rect x="4" y="4" width="8" height="8" fill="#795548"/>
+    <rect x="5" y="6" width="2" height="2" fill="#fff"/>
+    <rect x="9" y="6" width="2" height="2" fill="#fff"/>
+    <!-- LOL Box -->
+    <rect x="6" y="10" width="8" height="4" fill="#E91E63"/>
+    <text x="7" y="13" font-family="monospace" font-size="3" fill="#fff" font-weight="bold">LOL</text>
+  </g>
+
+  <!-- Bottom Left: Flower -->
+  <g transform="translate(6, 26)">
+    <rect width="16" height="16" rx="4" fill="#9C27B0"/>
+    <path d="M 8 16 L 8 10" stroke="#81C784" stroke-width="1.5"/>
+    <circle cx="8" cy="8" r="3" fill="#F48FB1"/>
+    <circle cx="8" cy="8" r="1.5" fill="#FFEB3B"/>
+  </g>
+
+  <!-- Bottom Right: ETH -->
+  <g transform="translate(26, 26)">
+    <rect width="16" height="16" rx="4" fill="#1A1B1F"/>
+    <circle cx="8" cy="8" r="8" fill="#8C9EFF"/>
+    <path d="M 8 3 L 5 8 L 8 10 L 11 8 Z" fill="#fff" opacity="0.8"/>
+    <path d="M 8 10 L 5 8 L 8 13 L 11 8 Z" fill="#fff" opacity="0.5"/>
+  </g>
+</svg>
