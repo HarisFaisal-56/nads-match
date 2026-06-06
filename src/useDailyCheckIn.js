@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-
+import { toHex } from 'viem';
 import { GAME_CONTRACT_ADDRESS, GAME_CONTRACT_ABI } from './constants';
+import { BUILDER_CODE } from './wagmi-config';
 
 export function useDailyCheckIn(walletAddress) {
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
@@ -129,6 +130,7 @@ export function useDailyCheckIn(walletAddress) {
         address: GAME_CONTRACT_ADDRESS,
         abi: GAME_CONTRACT_ABI,
         functionName: 'checkIn',
+        ...(BUILDER_CODE ? { dataSuffix: toHex(BUILDER_CODE) } : {}),
       });
     } catch (err) {
       console.error('Failed to call checkIn:', err);

@@ -1,6 +1,8 @@
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { GAME_CONTRACT_ADDRESS, GAME_CONTRACT_ABI } from './constants';
 import { Link } from 'lucide-react';
+import { toHex } from 'viem';
+import { BUILDER_CODE } from './wagmi-config';
 
 /**
  * LevelComplete screen – shown when the player beats the target score.
@@ -36,6 +38,7 @@ export default function LevelComplete({ score, targetScore, level, onNextLevel, 
         abi: GAME_CONTRACT_ABI,
         functionName: 'submitScore',
         args: [BigInt(score), BigInt(level)],
+        ...(BUILDER_CODE ? { dataSuffix: toHex(BUILDER_CODE) } : {}),
       });
     } catch (err) {
       console.error('Failed to submit score on-chain:', err);
