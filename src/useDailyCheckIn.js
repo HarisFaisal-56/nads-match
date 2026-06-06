@@ -89,7 +89,7 @@ export function useDailyCheckIn(walletAddress) {
     return () => clearInterval(interval);
   }, [lastCheckInBN]);
 
-  const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract();
+  const { writeContractAsync, data: txHash, isPending, error: writeError } = useWriteContract();
 
   const { isLoading: isWaiting, isSuccess, isError: isReceiptError } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -122,10 +122,10 @@ export function useDailyCheckIn(walletAddress) {
     }
   }, [writeError, isReceiptError]);
 
-  const checkIn = useCallback(() => {
+  const checkIn = useCallback(async () => {
     if (!walletAddress || hasCheckedInToday || isCheckingIn || isCooldownActive) return;
     try {
-      writeContract({
+      await writeContractAsync({
         address: GAME_CONTRACT_ADDRESS,
         abi: GAME_CONTRACT_ABI,
         functionName: 'checkIn',
@@ -133,7 +133,7 @@ export function useDailyCheckIn(walletAddress) {
     } catch (err) {
       console.error('Failed to call checkIn:', err);
     }
-  }, [walletAddress, hasCheckedInToday, isCheckingIn, isCooldownActive, writeContract]);
+  }, [walletAddress, hasCheckedInToday, isCheckingIn, isCooldownActive, writeContractAsync]);
 
   return { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive };
 }

@@ -25,7 +25,7 @@ export const getLevelConfig = (level) => {
 };
 
 // ── On-chain smart contract integration ─────────────────────────
-export const GAME_CONTRACT_ADDRESS = '0x7F8ABBa2bC8Bd8472C76e6d7fC8cD36f223f0496';
+export const GAME_CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0x7F8ABBa2bC8Bd8472C76e6d7fC8cD36f223f0496';
 
 export const GAME_CONTRACT_ABI = [
   {

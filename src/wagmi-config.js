@@ -6,11 +6,11 @@ import { http, createConfig } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { coinbaseWallet, injected, walletConnect } from 'wagmi/connectors';
 
-export const BUILDER_CODE = 'bc_uljqyc06';
+export const BUILDER_CODE = import.meta.env.VITE_BUILDER_CODE || '';
 
 // WalletConnect Project ID (public test key from RainbowKit).
 // For production, create your own free ID at https://cloud.reown.com
-const WC_PROJECT_ID = '21fef48091f12692cad574a6f7753643';
+const WC_PROJECT_ID = import.meta.env.VITE_WC_PROJECT_ID || '';
 
 export const wagmiConfig = createConfig({
   chains: [base],

@@ -125,7 +125,7 @@ function GameBoard({ level, username, onWin, onLose, onGoHome }) {
 }
 
 // ── Leaderboard Panel ───────────────────────────────────────────
-function LeaderboardPanel({ entries, onClose, isLoading }) {
+function LeaderboardPanel({ entries, onClose, isLoading, error }) {
   return (
     <div className="modal-overlay">
       <div className="modal-card" style={{ maxHeight: '80vh', overflowY: 'auto', background: 'linear-gradient(135deg, #e0f2fe, #bae6fd)', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
@@ -134,6 +134,11 @@ function LeaderboardPanel({ entries, onClose, isLoading }) {
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
             <div style={{ display: 'inline-block', width: 28, height: 28, border: '3px solid #bae6fd', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: 12, fontWeight: 600 }}>Loading scores from Base…</p>
+          </div>
+        ) : error ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ color: '#ef4444', fontSize: '0.9rem', fontWeight: 600 }}>Failed to load leaderboard from Base.</p>
+            <p style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: 4 }}>Please try again later.</p>
           </div>
         ) : entries.length === 0 ? (
           <p className="modal-score-text">No scores yet. Play a level and submit on-chain!</p>
@@ -194,7 +199,7 @@ function App() {
   const { submitScore } = useLeaderboard();
 
   // On-chain leaderboard (for display)
-  const { entries: leaderboardEntries, isLoading: isLeaderboardLoading } = useOnChainLeaderboard();
+  const { entries: leaderboardEntries, isLoading: isLeaderboardLoading, error: leaderboardError, refetch: refetchLeaderboard } = useOnChainLeaderboard();
 
   // Daily check-in (keyed on connected wallet address)
   const { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive } = useDailyCheckIn(address);
@@ -281,9 +286,10 @@ function App() {
             color: white !important;
             border: none !important;
             box-shadow: 0 0 15px rgba(168, 85, 247, 0.5) !important;
+            transition: all 0.25s ease !important;
           }
           .neon-btn-primary:hover {
-            box-shadow: 0 0 25px rgba(168, 85, 247, 0.8) !important;
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.8), 0 0 60px rgba(59, 130, 246, 0.3) !important;
             transform: translateY(-2px) scale(1.02);
           }
           .neon-btn-disabled {
@@ -315,6 +321,47 @@ function App() {
             transform: scale(1.1);
             filter: drop-shadow(0 0 5px rgba(168, 85, 247, 0.6));
           }
+          @keyframes pulseDot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(74, 222, 128, 0.8); }
+            50% { opacity: 0.5; box-shadow: 0 0 2px rgba(74, 222, 128, 0.4); }
+          }
+          @keyframes titleGradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+          .base-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 14px;
+            border-radius: 60px;
+            border: 1.5px solid rgba(96, 165, 250, 0.85);
+            background:
+              linear-gradient(175deg, rgba(59, 130, 246, 0.18) 0%, rgba(30, 58, 138, 0.25) 50%, rgba(15, 23, 42, 0.3) 100%);
+            box-shadow:
+              0 0 4px rgba(59, 130, 246, 0.7),
+              0 0 10px rgba(59, 130, 246, 0.4),
+              0 0 22px rgba(59, 130, 246, 0.15),
+              inset 0 1px 4px rgba(96, 165, 250, 0.2),
+              inset 0 -2px 6px rgba(30, 58, 138, 0.35);
+            transition: all 0.3s ease;
+            color: #93c5fd;
+            text-shadow:
+              0 0 6px rgba(96, 165, 250, 0.8),
+              0 0 14px rgba(59, 130, 246, 0.45);
+            font-weight: 800;
+            letter-spacing: 1.2px;
+          }
+          .base-badge:hover {
+            border-color: rgba(147, 197, 253, 0.95);
+            box-shadow:
+              0 0 6px rgba(59, 130, 246, 0.85),
+              0 0 14px rgba(59, 130, 246, 0.55),
+              0 0 30px rgba(59, 130, 246, 0.25),
+              inset 0 1px 6px rgba(96, 165, 250, 0.3),
+              inset 0 -2px 8px rgba(30, 58, 138, 0.4);
+            transform: scale(1.06);
+          }
         `}</style>
 
         {/* Card */}
@@ -323,7 +370,7 @@ function App() {
           maxWidth: '420px',
           margin: 'auto',
           height: 'auto',
-          background: 'linear-gradient(to bottom, #00001a, #00003d)',
+          background: 'linear-gradient(160deg, #0a0a2e 0%, #120a3c 40%, #1a0e4a 70%, #0d0628 100%)',
           borderRadius: '24px',
           padding: '16px',
           display: 'flex',
@@ -331,8 +378,8 @@ function App() {
           alignItems: 'center',
           gap: '8px',
           boxSizing: 'border-box',
-          border: '1px solid rgba(168, 85, 247, 0.4)',
-          boxShadow: '0 0 30px rgba(168, 85, 247, 0.2)',
+          border: '1px solid rgba(168, 85, 247, 0.35)',
+          boxShadow: '0 0 40px rgba(168, 85, 247, 0.2), 0 0 80px rgba(99, 102, 241, 0.1), 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         }}>
 
           {/* ONLY show when connected */}
@@ -342,9 +389,29 @@ function App() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              fontSize: '12px'
             }}>
-              <span style={{ color: '#4ade80', fontWeight: '800' }}>Connected: {address?.slice(0, 6)}...{address?.slice(-4)}</span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                background: 'rgba(30, 27, 75, 0.55)',
+                backdropFilter: 'blur(6px)',
+                WebkitBackdropFilter: 'blur(6px)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                borderRadius: '50px',
+                padding: '4px 12px 4px 10px',
+              }}>
+                <span style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: '#4ade80',
+                  display: 'inline-block',
+                  flexShrink: 0,
+                  animation: 'pulseDot 2s ease-in-out infinite',
+                }} />
+                <span style={{ color: '#e2e8f0', fontWeight: '600', fontSize: '11px', letterSpacing: '0.3px' }}>{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+              </div>
               <button
                 onClick={() => disconnect()}
                 className="logout-btn-hover"
@@ -359,23 +426,29 @@ function App() {
           <img src={gameLogo} alt="Nads Smash" style={{ width: '80px', height: '80px', borderRadius: '16px', margin: '0' }} />
           {/* Title - always show */}
           <h1 style={{
-            fontSize: '26px',
-            fontWeight: 'bold',
+            fontSize: '28px',
+            fontWeight: '900',
             margin: '0',
             textAlign: 'center',
-            background: 'linear-gradient(135deg, #3b82f6, #a855f7, #ec4899)',
+            background: 'linear-gradient(135deg, #60a5fa, #a78bfa, #c084fc, #f472b6, #60a5fa)',
+            backgroundSize: '200% 200%',
+            animation: 'titleGradientShift 4s ease infinite',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
+            backgroundClip: 'text',
+            filter: 'drop-shadow(0 0 12px rgba(168, 85, 247, 0.5))',
+            letterSpacing: '1px'
           }}>Nads Smash</h1>
 
           {/* Tagline - always show */}
           <p style={{
             fontSize: '13px',
-            color: '#9ca3af',
+            color: '#c084fc',
             margin: '0',
             textAlign: 'center',
-            letterSpacing: '2px'
+            letterSpacing: '2.5px',
+            textShadow: '0 0 12px rgba(192, 132, 252, 0.5)',
+            fontWeight: '600'
           }}>Match · Blast · Conquer</p>
 
           {/* ONLY show when connected */}
@@ -385,7 +458,7 @@ function App() {
               <button
                 className="btn-pill neon-btn neon-btn-amber"
                 style={{ width: '100%', margin: '0', padding: '10px 16px', fontSize: '14px' }}
-                onClick={() => setShowLeaderboard(true)}
+                onClick={() => { refetchLeaderboard(); setShowLeaderboard(true); }}
               >
                 🏆 Leaderboard
               </button>
@@ -455,7 +528,8 @@ function App() {
                     type="text"
                     placeholder="Enter username..."
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                    maxLength={15}
                     className="input-pill neon-input"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '10px 16px', fontSize: '14px' }}
                     autoFocus
@@ -469,8 +543,8 @@ function App() {
 
                 <button
                   type="submit"
-                  disabled={!username.trim()}
-                  className={username.trim() ? "btn-pill neon-btn-primary" : "btn-pill neon-btn-disabled"}
+                  disabled={!username.trim() || !isConnected}
+                  className={username.trim() && isConnected ? "btn-pill neon-btn-primary" : "btn-pill neon-btn-disabled"}
                   style={{
                     width: '100%',
                     padding: '12px',
@@ -508,8 +582,8 @@ function App() {
           )}
 
           {/* Builder text - always show */}
-          <p style={{ fontSize: '10px', color: '#60a5fa', margin: '0', textShadow: '0 0 8px rgba(96, 165, 250, 0.8)', fontWeight: '600', letterSpacing: '1px' }}>
-            Built on Base
+          <p style={{ fontSize: '10px', color: '#c0c8d8', margin: '0', fontWeight: '700', letterSpacing: '1.2px', display: 'flex', alignItems: 'center', gap: '6px', textShadow: '0 0 4px rgba(255, 255, 255, 0.12)' }}>
+            Built on <span className="base-badge" style={{ fontSize: '10px' }}>Base</span>
           </p>
 
         </div>
@@ -520,6 +594,7 @@ function App() {
           <LeaderboardPanel
             entries={leaderboardEntries}
             isLoading={isLeaderboardLoading}
+            error={leaderboardError}
             onClose={() => setShowLeaderboard(false)}
           />
         )}

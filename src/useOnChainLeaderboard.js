@@ -112,5 +112,5 @@ export function useOnChainLeaderboard() {
     };
   }, [fetchLeaderboard]);
 
-  return { entries, isLoading, error };
+  return { entries, isLoading, error, refetch: fetchLeaderboard };
 }
