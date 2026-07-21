@@ -25,20 +25,23 @@ https://nads-match.vercel.app
 ## 🛠 Tech Stack
 
 ### Frontend
-- React 19
+
+- React
 - Vite
-- JavaScript (ES6+)
-- CSS3
+- JavaScript
+- CSS
 
 ### Web3
+
 - Base Mainnet
 - Wagmi
 - Viem
 - Coinbase OnchainKit
 - WalletConnect
-- TanStack React Query
+- TanStack Query
 
 ### Deployment
+
 - Vercel
 
 ---
@@ -47,7 +50,7 @@ https://nads-match.vercel.app
 
 Players connect their wallet, enter the game, complete levels, and submit scores directly on-chain.
 
-The game features:
+The game includes:
 
 - 30 progressively challenging levels
 - Cascading combo mechanics
@@ -114,25 +117,6 @@ VITE_WC_PROJECT_ID=your_walletconnect_project_id
 VITE_CONTRACT_ADDRESS=your_contract_address
 VITE_BUILDER_CODE=your_builder_code
 ```
-
----
-
-## 🚀 Future Improvements
-
-- NFT rewards and collectibles
-- PvP multiplayer mode
-- Tournament system
-- Gasless transactions
-- Achievement badges
-- Enhanced leaderboard rewards
-
----
-
-## 👨‍💻 Author
-
-**Haris Faisal**
-
-GitHub: https://github.com/HarisFaisal-56
 
 ---
 
