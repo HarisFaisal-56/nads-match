@@ -7,6 +7,8 @@ import { base } from 'wagmi/chains';
 
 import { wagmiConfig, BUILDER_CODE } from './wagmi-config';
 import App from './App.jsx';
+import '@fontsource/lilita-one/400.css';
+import '@fontsource-variable/baloo-2';
 import './index.css';
 import '@coinbase/onchainkit/styles.css';
 
