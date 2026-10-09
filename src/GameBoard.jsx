@@ -3,6 +3,7 @@ import { Pause } from 'lucide-react';
 import { useGameLogic } from './useGameLogic';
 import { BOARD_SIZE, CANDY_IMAGES } from './constants';
 import SubmitScore from './SubmitScore';
+import { useScoreTx } from './useScoreTx';
 import { OText, StarShape, Ribbon, MuteButton } from './ui';
 import { STAR_STEPS, COMBO_WORDS } from './ui-utils';
 import { initTrack, advanceTrack, areNeighbours, swapMakesMatch, findHint } from './pieces';
@@ -71,6 +72,9 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
     board, score, moves, targetScore, isProcessing,
     handleDragStart, handleDragEnter, handleDragEnd
   } = useGameLogic(level, onWin, onLose);
+
+  // lives here (not in the pause menu) so a pending/posted tx survives pause → resume
+  const scoreTx = useScoreTx();
 
   // ── piece tracking + effects, derived from how board/score/moves change ──
   const [startMoves] = useState(moves);
@@ -168,7 +172,9 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
 
   // ── input: swipe a piece, or tap one then tap a neighbour ──
   const dragRef = useRef(null);
-  const blocked = isPaused || isProcessing || moves <= 0;
+  // same end conditions useGameLogic uses, so the board locks the moment a level is decided
+  const levelDecided = (targetScore > 0 && score >= targetScore) || moves <= 0;
+  const blocked = isPaused || isProcessing || levelDecided;
 
   const cellAt = (x, y) => {
     const el = document.elementFromPoint(x, y);
@@ -421,7 +427,7 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
               <button type="button" className="gbtn" onClick={() => { sfx.tap(); resume(); }} autoFocus>
                 <span className="stroke">Resume</span>
               </button>
-              <SubmitScore score={score} level={level} />
+              <SubmitScore score={score} level={level} tx={scoreTx} />
               <div className="pause-row">
                 <MuteButton small />
                 <button type="button" className="link-btn" onClick={onGoHome}>

@@ -1,8 +1,9 @@
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { toHex } from 'viem';
 import { Link2, Check } from 'lucide-react';
 import { GAME_CONTRACT_ADDRESS, GAME_CONTRACT_ABI } from './constants';
 import { BUILDER_CODE } from './wagmi-config';
+import { useScoreTx } from './useScoreTx';
 
 /**
  * "Post score on Base" button, shared by the pause, level-complete and
@@ -10,16 +11,24 @@ import { BUILDER_CODE } from './wagmi-config';
  * optional builder-code data suffix); only the presentation changed.
  * Renders nothing when no wallet is connected.
  */
-export default function SubmitScore({ score, level }) {
+export default function SubmitScore({ score, level, tx }) {
   const { address, isConnected } = useAccount();
+  const own = useScoreTx();
+  const { write, receipt } = tx ?? own;
 
-  const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract();
-  const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+  const { writeContract, data: txHash, isPending, error: writeError, variables } = write;
+  const { isLoading: isWaiting, isSuccess } = receipt;
 
   if (!isConnected) return null;
 
+  // a posted score only counts as "done" for the score/level it was sent with
+  const sentArgs = variables?.args;
+  const sameScore = !!sentArgs && sentArgs[0] === BigInt(score) && sentArgs[1] === BigInt(level);
+  const isSubmitting = isPending || isWaiting;
+  const isDone = isSuccess && sameScore;
+
   const handleSubmit = () => {
-    if (!isConnected || !address) return;
+    if (!isConnected || !address || isSubmitting) return;
     try {
       writeContract({
         address: GAME_CONTRACT_ADDRESS,
@@ -33,8 +42,7 @@ export default function SubmitScore({ score, level }) {
     }
   };
 
-  const isSubmitting = isPending || isWaiting;
-  const stateClass = isSuccess ? 'is-done' : isSubmitting ? 'is-busy' : '';
+  const stateClass = isDone ? 'is-done' : isSubmitting ? 'is-busy' : '';
 
   return (
     <>
@@ -42,18 +50,18 @@ export default function SubmitScore({ score, level }) {
         type="button"
         className={`gbtn gbtn--blue ${stateClass}`}
         onClick={handleSubmit}
-        disabled={isSubmitting || isSuccess}
+        disabled={isSubmitting || isDone}
       >
-        {isSuccess ? (
+        {isDone ? (
           <><Check size={24} strokeWidth={3.5} color="var(--green-3)" /><span className="stroke">Score posted</span></>
         ) : isSubmitting ? (
           <><span className="spinner" /><span className="stroke">{isPending ? 'Confirm in wallet' : 'Posting…'}</span></>
         ) : (
-          <><Link2 size={24} strokeWidth={3} style={{ filter: 'drop-shadow(0 2px 0 var(--plum))' }} /><span className="stroke">Post score on Base</span></>
+          <><Link2 size={24} strokeWidth={3} style={{ filter: 'drop-shadow(0 2px 0 var(--plum))' }} /><span className="stroke">{isSuccess ? 'Post new score' : 'Post score on Base'}</span></>
         )}
       </button>
 
-      {isSuccess && txHash && (
+      {isDone && txHash && (
         <p className="tx-note">
           <a href={`https://basescan.org/tx/${txHash}`} target="_blank" rel="noopener noreferrer">
             View transaction on BaseScan ↗

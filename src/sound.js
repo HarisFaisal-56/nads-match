@@ -30,18 +30,29 @@ export function subscribeMuted(fn) {
   return () => listeners.delete(fn);
 }
 
+// Sound is decoration: if Web Audio is missing or misbehaves, the game must
+// carry on silently, so every path below swallows its own errors.
+let audioBroken = false;
+
 function audio() {
-  if (typeof window === 'undefined') return null;
-  if (!ctx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    ctx = new AC();
-    master = ctx.createGain();
-    master.gain.value = 0.55;
-    master.connect(ctx.destination);
+  if (typeof window === 'undefined' || audioBroken) return null;
+  try {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) { audioBroken = true; return null; }
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0.55;
+      master.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume?.()?.catch?.(() => {});
+    return ctx;
+  } catch {
+    audioBroken = true;
+    ctx = null;
+    master = null;
+    return null;
   }
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-  return ctx;
 }
 
 /** Call from a pointer/tap handler so browsers allow sound later. */
@@ -58,40 +69,50 @@ function allow(name, gap = 60) {
 }
 
 function tone({ freq, to = freq, dur = 0.12, type = 'sine', gain = 0.2, delay = 0 }) {
+  if (muted) return;
   const ac = audio();
-  if (!ac || muted) return;
-  const t0 = ac.currentTime + delay;
-  const osc = ac.createOscillator();
-  const g = ac.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, t0);
-  osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), t0 + dur);
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(g).connect(master);
-  osc.start(t0);
-  osc.stop(t0 + dur + 0.02);
+  if (!ac) return;
+  try {
+    const t0 = ac.currentTime + delay;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    // connect one hop at a time: older WebKit's connect() doesn't return the node
+    osc.connect(g);
+    g.connect(master);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  } catch { /* skip this sound */ }
 }
 
 function noise({ dur = 0.3, gain = 0.15, from = 3000, to = 200, delay = 0 }) {
+  if (muted) return;
   const ac = audio();
-  if (!ac || muted) return;
-  const t0 = ac.currentTime + delay;
-  const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * dur), ac.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-  const src = ac.createBufferSource();
-  src.buffer = buf;
-  const filter = ac.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(from, t0);
-  filter.frequency.exponentialRampToValueAtTime(to, t0 + dur);
-  const g = ac.createGain();
-  g.gain.setValueAtTime(gain, t0);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  src.connect(filter).connect(g).connect(master);
-  src.start(t0);
+  if (!ac) return;
+  try {
+    const t0 = ac.currentTime + delay;
+    const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * dur), ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const filter = ac.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(from, t0);
+    filter.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    src.start(t0);
+  } catch { /* skip this sound */ }
 }
 
 // C major pentatonic, so rising combos always sound musical
@@ -142,6 +163,14 @@ export const sfx = {
     [783.99, 1046.5, 1318.51].forEach((f, k) => tone({ freq: f, dur: 0.25, type: 'sine', gain: 0.12, delay: k * 0.08 }));
   },
 };
+
+/** Wrap a sound call so a failure can never block the action it decorates. */
+for (const name of Object.keys(sfx)) {
+  const play = sfx[name];
+  sfx[name] = (...args) => {
+    try { play(...args); } catch { /* sound is optional */ }
+  };
+}
 
 export function buzz(pattern) {
   if (muted) return;
