@@ -5,12 +5,12 @@ import './WalletModal.css';
 import phantomIcon from './assets/phantom.png';
 import hahaIcon from './assets/haha.png';
 import walletConnectIcon from './assets/walletconnect.png';
-import assetsIcon from './assets/login-keyhole.svg';
-import loginIcon from './assets/assets-grid.svg';
+import metamaskIcon from './assets/metamask logo.png';
+import { X, ChevronLeft } from 'lucide-react';
+import { Ribbon } from './ui';
 /* ─── Icon URLs ───────────────────────────────────────────────── */
 const WALLET_ICONS = {
-  metamask:
-    'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg',
+  metamask: metamaskIcon,
   coinbase:
     'https://avatars.githubusercontent.com/u/18060234',
   phantom: phantomIcon,
@@ -93,36 +93,13 @@ function LetterCircle({ name, walletKey }) {
 
 
 
-/** Home icon for feature block 1 — rendered inside gradient square */
-function HomeIcon() {
-  return (
-    <div className="wm-feature-icon-box wm-feature-icon-box--home">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-    </div>
-  );
-}
-
-/** Key icon for feature block 2 — rendered inside gradient square */
-function KeyIcon() {
-  return (
-    <div className="wm-feature-icon-box wm-feature-icon-box--key">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-      </svg>
-    </div>
-  );
-}
-
 /* ─── Component ───────────────────────────────────────────────── */
 
 export default function WalletModal({ isOpen, onClose }) {
   const { connect, connectors, isPending } = useConnect();
   const [connectingId, setConnectingId] = useState(null);
   const [imgErrors, setImgErrors] = useState({});  // track broken images
-  const [rightView, setRightView] = useState('info'); // 'info' | 'get'
+  const [view, setView] = useState('list'); // 'list' | 'get'
 
   const installed = useMemo(() => detectInstalled(), []);
 
@@ -144,7 +121,7 @@ export default function WalletModal({ isOpen, onClose }) {
     if (!isOpen) {
       setConnectingId(null);
       setImgErrors({});
-      setRightView('info');
+      setView('list');
     }
   }, [isOpen]);
 
@@ -251,115 +228,83 @@ export default function WalletModal({ isOpen, onClose }) {
     );
   };
 
+  const GET_WALLETS = [
+    { name: 'Rainbow', icon: WALLET_ICONS.rainbow, key: 'rainbow', url: 'https://rainbow.me/download' },
+    { name: 'Coinbase Wallet', icon: WALLET_ICONS.coinbase, key: 'coinbase', url: 'https://www.coinbase.com/wallet/downloads' },
+    { name: 'MetaMask', icon: WALLET_ICONS.metamask, key: 'metamask', url: 'https://metamask.io/download/' },
+  ];
+
   return (
-    <div className="wm-overlay" onClick={onClose}>
-      <div className="wm-container" onClick={(e) => e.stopPropagation()}>
+    <div className="overlay wm-overlay" onClick={onClose}>
+      <section
+        className="panel wm-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={view === 'list' ? 'Connect a wallet' : 'Get a wallet'}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Ribbon tone="blue">{view === 'list' ? 'Connect wallet' : 'Get a wallet'}</Ribbon>
+        <button type="button" className="rbtn rbtn--red rbtn--sm panel-close" onClick={onClose} aria-label="Close">
+          <X size={22} strokeWidth={4} />
+        </button>
 
-        {/* ─── Left Panel: wallet list ─── */}
-        <div className="wm-left">
-          <div className="wm-left-header">Connect a Wallet</div>
+        {view === 'list' ? (
+          <>
+            <p className="panel-sub">Your wallet is your login. No email, no password.</p>
 
-          <div className="wm-wallet-list">
-            {/* Installed section */}
-            {installedWallets.length > 0 && (
-              <>
-                <div className="wm-section-label">Installed</div>
-                {installedWallets.map(renderRow)}
-                <hr className="wm-divider" />
-              </>
-            )}
-
-            {/* Popular section */}
-            <div className={`wm-section-label ${installedWallets.length > 0 ? 'popular' : ''}`}>Popular</div>
-            {popularWallets.map(renderRow)}
-          </div>
-        </div>
-
-        {/* ─── Right Panel: info or get ─── */}
-        <div className="wm-right">
-          {/* Close button */}
-          <button className="wm-close" onClick={onClose} aria-label="Close">&times;</button>
-          
-          {rightView === 'info' ? (
-            <>
-              <div className="wm-right-header">What is a Wallet?</div>
-
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '14px', marginBottom: '20px' }}>
-                <img src={assetsIcon} alt="Digital Assets" className="wm-feature-icon-img" />
-                <div>
-                  <p style={{ color: '#ffffff', fontSize: '13px', fontWeight: 600, margin: '0 0 4px 0', lineHeight: 1.3 }}>A Home for your Digital Assets</p>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '12px', lineHeight: 1.55, margin: 0 }}>Wallets are used to send, receive, store, and display digital assets like Ethereum and NFTs.</p>
+            <div className="wm-wallet-list">
+              {installedWallets.length > 0 && (
+                <div className="wm-group">
+                  <div className="wm-section-label">Found in this browser</div>
+                  {installedWallets.map(renderRow)}
                 </div>
+              )}
+              <div className="wm-group">
+                <div className="wm-section-label">{installedWallets.length > 0 ? 'More wallets' : 'Wallets'}</div>
+                {popularWallets.map(renderRow)}
               </div>
+            </div>
 
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '14px', marginBottom: '20px' }}>
-                <img src={loginIcon} alt="Log In" className="wm-feature-icon-img" />
-                <div>
-                  <p style={{ color: '#ffffff', fontSize: '13px', fontWeight: 600, margin: '0 0 4px 0', lineHeight: 1.3 }}>A New Way to Log In</p>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '12px', lineHeight: 1.55, margin: 0 }}>Instead of creating new accounts and passwords on every website, just connect your wallet.</p>
-                </div>
-              </div>
-
-              <button
-                className="wm-get-wallet"
-                onClick={() => setRightView('get')}
-              >
-                Get a Wallet
+            <div className="wm-new">
+              <span>New to wallets?</span>
+              <button type="button" className="gbtn gbtn--violet gbtn--sm" onClick={() => setView('get')}>
+                <span className="stroke">Get one</span>
               </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="panel-sub">A wallet holds your crypto and signs you in. These work great on Base.</p>
 
-              <a
-                className="wm-learn-more"
-                href="https://learn.rainbow.me/understanding-web3?utm_source=rainbowkit&utm_campaign=learnmore"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Learn More
-              </a>
-            </>
-          ) : (
-            <>
-              <div className="wm-right-header wm-get-header">
-                <button className="wm-back-btn" onClick={() => setRightView('info')}>&lsaquo;</button>
-                Get a Wallet
-              </div>
-
-              <div className="wm-get-list">
-                <div className="wm-get-row">
-                  <img className="wm-get-icon" src={WALLET_ICONS.rainbow} alt="Rainbow" />
-                  <div className="wm-get-info">
-                    <div className="wm-get-name">Rainbow</div>
-                    <div className="wm-get-desc">Mobile Wallet and Extension</div>
+            <div className="wm-wallet-list">
+              <div className="wm-group">
+                {GET_WALLETS.map((w) => (
+                  <div key={w.name} className="wm-row wm-row--static">
+                    {!imgErrors[w.name] ? (
+                      <img className="wm-row-icon" src={w.icon} alt="" onError={() => handleImgError(w.name)} />
+                    ) : (
+                      <LetterCircle name={w.name} walletKey={w.key} />
+                    )}
+                    <div className="wm-row-info">
+                      <span className="wm-row-name">{w.name}</span>
+                      <span className="wm-row-desc">App and browser extension</span>
+                    </div>
+                    <button type="button" className="gbtn gbtn--sm" onClick={() => window.open(w.url, '_blank')}>
+                      <span className="stroke">Get</span>
+                    </button>
                   </div>
-                  <button className="wm-get-btn" onClick={() => window.open('https://rainbow.me/download', '_blank')}>GET</button>
-                </div>
-
-                <div className="wm-get-row">
-                  <img className="wm-get-icon" src={WALLET_ICONS.coinbase} alt="Coinbase Wallet" />
-                  <div className="wm-get-info">
-                    <div className="wm-get-name">Coinbase Wallet</div>
-                    <div className="wm-get-desc">Mobile Wallet and Extension</div>
-                  </div>
-                  <button className="wm-get-btn" onClick={() => window.open('https://www.coinbase.com/wallet/downloads', '_blank')}>GET</button>
-                </div>
-
-                <div className="wm-get-row">
-                  <img className="wm-get-icon" src={WALLET_ICONS.metamask} alt="MetaMask" />
-                  <div className="wm-get-info">
-                    <div className="wm-get-name">MetaMask</div>
-                    <div className="wm-get-desc">Mobile Wallet and Extension</div>
-                  </div>
-                  <button className="wm-get-btn" onClick={() => window.open('https://metamask.io/download/', '_blank')}>GET</button>
-                </div>
+                ))}
               </div>
+            </div>
 
-              <div className="wm-get-footer">
-                <div className="wm-get-footer-title">Not what you're looking for?</div>
-                <div className="wm-get-footer-desc">Select a wallet on the left to get started with a different wallet provider.</div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+            <div className="wm-new">
+              <button type="button" className="link-btn" onClick={() => setView('list')}>
+                <ChevronLeft size={18} strokeWidth={3} style={{ verticalAlign: '-3px' }} /> Back to wallets
+              </button>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
