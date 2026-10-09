@@ -1,13 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { Pause } from 'lucide-react';
 import { useGameLogic } from './useGameLogic';
-import { BOARD_SIZE } from './constants';
+import { BOARD_SIZE, CANDY_IMAGES } from './constants';
 import SubmitScore from './SubmitScore';
-import { OText, StarShape, Ribbon } from './ui';
+import { OText, StarShape, Ribbon, MuteButton } from './ui';
 import { STAR_STEPS, COMBO_WORDS } from './ui-utils';
+import { initTrack, advanceTrack, areNeighbours, swapMakesMatch, findHint } from './pieces';
+import { sfx, buzz, unlockAudio } from './sound';
 
+const N = BOARD_SIZE;
 const SPARKS = [0, 60, 120, 180, 240, 300];
-const EMPTY_FX = { gen: 0, cleared: {}, dropped: new Set(), fell: new Set(), swapped: new Set() };
+const HINT_AFTER_MS = 5000;
+
+// one frame colour per character, so matches read at a glance
+const RINGS = ['#FF5C6C', '#FFB224', '#FFE14D', '#6EE04A', '#2FD9C9', '#3F8CFF', '#A06BFF', '#FF6FCF', '#FFFFFF'];
+const ringFor = (img) => RINGS[Math.max(0, CANDY_IMAGES.indexOf(img)) % RINGS.length];
+
+const SHAKE = [
+  { transform: 'translate(0,0) rotate(0)' },
+  { transform: 'translate(-8px,3px) rotate(-1deg)' },
+  { transform: 'translate(7px,-4px) rotate(1deg)' },
+  { transform: 'translate(-5px,2px) rotate(-0.5deg)' },
+  { transform: 'translate(3px,-1px) rotate(0.3deg)' },
+  { transform: 'translate(0,0) rotate(0)' },
+];
+
+const fakeEvent = { preventDefault() {} };
 
 /** Score that counts up instead of jumping. */
 function ScoreNum({ value }) {
@@ -37,44 +55,12 @@ function ScoreNum({ value }) {
   );
 }
 
-/** Work out which cells changed between two boards so each can animate. */
-function diffBoards(prev, next, gen) {
-  const cleared = {};
-  const dropped = new Set();
-  const changed = [];
-  next.forEach((img, i) => {
-    const was = prev[i];
-    if (was && !img) cleared[i] = was;
-    else if (!was && img) dropped.add(i);
-    else if (was && img && was !== img) changed.push(i);
-  });
-  const isSwap =
-    changed.length === 2 &&
-    Object.keys(cleared).length === 0 &&
-    dropped.size === 0 &&
-    Math.abs(Math.floor(changed[0] / BOARD_SIZE) - Math.floor(changed[1] / BOARD_SIZE)) +
-      Math.abs((changed[0] % BOARD_SIZE) - (changed[1] % BOARD_SIZE)) === 1;
-  return {
-    gen,
-    cleared,
-    dropped,
-    fell: isSwap ? new Set() : new Set(changed),
-    swapped: isSwap ? new Set(changed) : new Set(),
-  };
-}
-
 function centroid(indices) {
   if (!indices.length) return { x: 50, y: 50 };
   let r = 0;
   let c = 0;
-  indices.forEach((i) => {
-    r += Math.floor(i / BOARD_SIZE);
-    c += i % BOARD_SIZE;
-  });
-  return {
-    x: ((c / indices.length + 0.5) / BOARD_SIZE) * 100,
-    y: ((r / indices.length + 0.5) / BOARD_SIZE) * 100,
-  };
+  indices.forEach((i) => { r += Math.floor(i / N); c += i % N; });
+  return { x: ((c / indices.length + 0.5) / N) * 100, y: ((r / indices.length + 0.5) / N) * 100 };
 }
 
 export default function GameBoard({ level, username, onWin, onLose, onGoHome }) {
@@ -83,44 +69,79 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
 
   const {
     board, score, moves, targetScore, isProcessing,
-    handleDragStart, handleDragOver, handleDragEnter, handleDragEnd
+    handleDragStart, handleDragEnter, handleDragEnd
   } = useGameLogic(level, onWin, onLose);
 
-  // ── Visual effects, derived from how the board/score/moves change ──
+  // ── piece tracking + effects, derived from how board/score/moves change ──
   const [startMoves] = useState(moves);
   const [showIntro, setShowIntro] = useState(true);
   const [prev, setPrev] = useState({ board, score, moves });
-  const [fx, setFx] = useState(EMPTY_FX);
+  const [track, setTrack] = useState(() => initTrack(board));
+  const [pops, setPops] = useState([]);
   const [combo, setCombo] = useState(0);
   const [floats, setFloats] = useState([]);
   const [callout, setCallout] = useState(null);
-  const [shake, setShake] = useState(0);
+  const [event, setEvent] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [hint, setHint] = useState(null);
+  const [inputTick, setInputTick] = useState(0);
 
   if (prev.board !== board || prev.score !== score || prev.moves !== moves) {
-    const gen = fx.gen + 1;
-    const nextFx = prev.board !== board ? diffBoards(prev.board, board, gen) : fx;
-    if (nextFx !== fx) setFx(nextFx);
+    let died = [];
+    if (prev.board !== board) {
+      const res = advanceTrack(track, board);
+      died = res.died;
+      setTrack(res.track);
+      if (died.length) {
+        const stamp = `${res.track.nextId}-${died[0].id}`;
+        setPops((p) => [...p.slice(-40), ...died.map((d) => ({ ...d, key: `${stamp}-${d.id}` }))]);
+      }
+      if (hint) setHint(null);
+    }
 
-    let nextCombo = combo;
-    if (moves !== prev.moves) nextCombo = 0;
-
+    let nextCombo = moves !== prev.moves ? 0 : combo;
     const gained = score - prev.score;
     if (gained > 0) {
       nextCombo += 1;
-      const at = centroid(Object.keys(nextFx.cleared).map(Number));
-      setFloats((f) => [...f, { id: `${gen}-${score}`, ...at, text: `+${gained}`, born: gen }]);
+      const at = centroid(died.map((d) => d.idx));
+      const id = `${score}-${moves}-${nextCombo}`;
+      setFloats((f) => [...f, { id, ...at, text: `+${gained}` }]);
       if (gained >= 50) {
-        setCallout({ id: gen, text: 'Comet Blast!', variant: 'pink', big: true });
-        setShake((s) => s + 1);
-      } else if (nextCombo >= 2) {
-        setCallout({ id: gen, text: COMBO_WORDS[Math.min(nextCombo, COMBO_WORDS.length - 1)], variant: '' });
+        setCallout({ id, text: 'Comet Blast!', variant: 'pink', big: true });
+        setEvent({ id, kind: 'comet', combo: nextCombo });
+      } else {
+        // never cut the Comet Blast banner short with a combo word
+        if (nextCombo >= 2 && !callout?.big) {
+          setCallout({ id, text: COMBO_WORDS[Math.min(nextCombo, COMBO_WORDS.length - 1)], variant: '' });
+        }
+        setEvent({ id, kind: 'match', combo: nextCombo });
       }
     }
     if (nextCombo !== combo) setCombo(nextCombo);
     setPrev({ board, score, moves });
   }
 
-  // tidy up effects once their animations are done
+  // ── side effects: sound, vibration, screen shake, timers ──
+  const boardRef = useRef(null);
+
+  useEffect(() => {
+    if (!event) return;
+    if (event.kind === 'comet') {
+      sfx.comet();
+      buzz([30, 40, 70]);
+      boardRef.current?.animate?.(SHAKE, { duration: 480, easing: 'ease-out' });
+    } else {
+      sfx.match(event.combo);
+      buzz(event.combo > 1 ? [12, 30, 12] : 12);
+    }
+  }, [event]);
+
+  useEffect(() => {
+    if (!pops.length) return undefined;
+    const t = setTimeout(() => setPops([]), 600);
+    return () => clearTimeout(t);
+  }, [pops]);
+
   useEffect(() => {
     if (!floats.length) return undefined;
     const t = setTimeout(() => setFloats((f) => f.slice(1)), 900);
@@ -138,11 +159,97 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
     return () => clearTimeout(t);
   }, []);
 
+  // wiggle a valid move if the player has been idle for a while
+  useEffect(() => {
+    if (isProcessing || isPaused || showIntro || moves <= 0) return undefined;
+    const t = setTimeout(() => setHint(findHint(board)), HINT_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [board, isProcessing, isPaused, showIntro, moves, inputTick]);
+
+  // ── input: swipe a piece, or tap one then tap a neighbour ──
+  const dragRef = useRef(null);
+  const blocked = isPaused || isProcessing || moves <= 0;
+
+  const cellAt = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    const cell = el?.closest?.('[data-index]');
+    return cell ? Number(cell.dataset.index) : null;
+  };
+
+  const trySwap = (a, b) => {
+    if (blocked || !areNeighbours(a, b) || !board[a] || !board[b]) return;
+    if (swapMakesMatch(board, a, b)) {
+      sfx.swap();
+    } else {
+      sfx.bonk();
+      buzz([8, 40, 8]);
+    }
+    handleDragStart(fakeEvent, a);
+    handleDragEnter(fakeEvent, b);
+    handleDragEnd();
+  };
+
+  const onPointerDown = (e) => {
+    unlockAudio();
+    setInputTick((n) => n + 1);
+    if (hint) setHint(null);
+    if (blocked) return;
+    const idx = cellAt(e.clientX, e.clientY);
+    if (idx === null || !board[idx]) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    dragRef.current = { idx, x: e.clientX, y: e.clientY, done: false };
+  };
+
+  const onPointerMove = (e) => {
+    const d = dragRef.current;
+    if (!d || d.done) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    const cellSize = (boardRef.current?.clientWidth || 320) / N;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < cellSize * 0.32) return;
+    const row = Math.floor(d.idx / N);
+    const col = d.idx % N;
+    let to = null;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0 && col < N - 1) to = d.idx + 1;
+      if (dx < 0 && col > 0) to = d.idx - 1;
+    } else {
+      if (dy > 0 && row < N - 1) to = d.idx + N;
+      if (dy < 0 && row > 0) to = d.idx - N;
+    }
+    d.done = true;
+    setSelected(null);
+    if (to !== null) trySwap(d.idx, to);
+  };
+
+  const onPointerUp = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d || d.done || blocked) return;
+    // a tap, not a swipe
+    if (selected !== null && selected !== d.idx && areNeighbours(selected, d.idx)) {
+      setSelected(null);
+      trySwap(selected, d.idx);
+    } else if (selected === d.idx) {
+      setSelected(null);
+    } else {
+      setSelected(d.idx);
+      sfx.select();
+    }
+  };
+
   const maxMeter = targetScore * STAR_STEPS[STAR_STEPS.length - 1];
   const meter = maxMeter > 0 ? Math.min(100, (score / maxMeter) * 100) : 0;
 
-  const pause = () => { setIsPaused(true); setShowSettings(true); };
+  const pause = () => { setIsPaused(true); setShowSettings(true); setSelected(null); };
   const resume = () => { setShowSettings(false); setIsPaused(false); };
+
+  // pieces in id order keeps DOM order stable, so CSS transitions survive re-renders
+  const pieces = [];
+  track.ids.forEach((id, idx) => {
+    if (id && board[idx]) pieces.push({ id, idx, img: board[idx] });
+  });
+  pieces.sort((a, b) => a.id - b.id);
 
   return (
     <>
@@ -157,13 +264,14 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
                 <span className="name-avatar">{username.charAt(0).toUpperCase()}</span>
                 <span>{username}</span>
               </span>
-              <OText variant="white" className="level-flag">{`Level ${level}`}</OText>
+              <span className="hud-spacer" />
+              <MuteButton small />
             </div>
 
             <div className="hud-panel">
-              <div>
+              <div className="hud-score">
                 <div className="score-head">
-                  <span className="score-label">Score</span>
+                  <OText variant="white" className="level-flag">{`Level ${level}`}</OText>
                   <span className="target-text">Target {targetScore}</span>
                 </div>
                 <ScoreNum value={score} />
@@ -193,85 +301,81 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
             </div>
           </header>
 
-          <div className="board-wrap">
-            <div key={shake} className={`board ${shake ? 'is-shaking' : ''}`} aria-label="Game board">
-              {board.map((tileImage, index) => {
-                const row = Math.floor(index / BOARD_SIZE);
-                const col = index % BOARD_SIZE;
-                const anim = fx.dropped.has(index)
-                  ? 'is-drop'
-                  : fx.fell.has(index)
-                    ? 'is-fall'
-                    : fx.swapped.has(index)
-                      ? 'is-swap'
-                      : '';
-                const poppedImg = !tileImage ? fx.cleared[index] : null;
+          <div className="board-zone">
+            <div className="board-wrap">
+              <div
+                ref={boardRef}
+                className={`board ${isPaused ? 'is-paused' : ''} ${isProcessing ? 'is-busy' : ''}`}
+                aria-label="Game board"
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={() => { dragRef.current = null; }}
+              >
+                <div className="cells">
+                  {board.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`cell ${(Math.floor(index / N) + (index % N)) % 2 ? 'is-alt' : ''}`}
+                      data-index={index}
+                    />
+                  ))}
+                </div>
 
-                return (
-                  <div
-                    key={index}
-                    className={`cell ${(row + col) % 2 ? 'is-alt' : ''} ${!tileImage ? 'is-empty' : ''} ${isPaused ? 'is-paused' : ''}`}
-                    style={{ pointerEvents: isPaused ? 'none' : undefined }}
-                    draggable={!!tileImage && !isPaused && !isProcessing}
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={handleDragOver}
-                    onDragEnter={(e) => handleDragEnter(e, index)}
-                    onDragEnd={handleDragEnd}
-                    onTouchStart={(e) => {
-                      if (isPaused || isProcessing) return;
-                      handleDragStart(e, index);
-                    }}
-                    onTouchMove={(e) => {
-                      if (isPaused || isProcessing) return;
-                      const touch = e.touches[0];
-                      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-                      if (el && el.dataset.index !== undefined) {
-                        handleDragEnter(e, parseInt(el.dataset.index, 10));
-                      }
-                    }}
-                    onTouchEnd={(e) => {
-                      if (isPaused || isProcessing) return;
-                      handleDragEnd(e);
-                    }}
-                    data-index={index}
-                  >
-                    {tileImage && (
+                <div className="pieces">
+                  {pieces.map(({ id, idx, img }) => {
+                    const from = track.born[id];
+                    const isHint = hint && (hint[0] === idx || hint[1] === idx);
+                    return (
                       <span
-                        key={anim ? `a${fx.gen}` : 'still'}
-                        className={`piece ${anim}`}
+                        key={id}
+                        className={`piece ${from !== undefined ? 'is-born' : ''} ${selected === idx ? 'is-selected' : ''} ${isHint ? 'is-hint' : ''}`}
                         style={{
-                          backgroundImage: `url(${tileImage})`,
-                          animationDelay: anim === 'is-drop' ? `${(BOARD_SIZE - 1 - row) * 18}ms` : undefined,
+                          '--r': Math.floor(idx / N),
+                          '--c': idx % N,
+                          '--from': from ?? 0,
+                          '--ring': ringFor(img),
                         }}
-                      />
-                    )}
-                    {poppedImg && (
-                      <span key={`p${fx.gen}`}>
-                        <span className="pop" style={{ backgroundImage: `url(${poppedImg})` }} />
-                        {SPARKS.map((a) => <i key={a} className="spark" style={{ '--a': `${a + col * 13}deg` }} />)}
+                      >
+                        <span className="piece-face" style={{ backgroundImage: `url(${img})` }} />
                       </span>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+
+                  {pops.map((p) => (
+                    <span
+                      key={p.key}
+                      className="piece piece--pop"
+                      style={{ '--r': Math.floor(p.idx / N), '--c': p.idx % N, '--ring': ringFor(p.img) }}
+                    >
+                      <span className="piece-face" style={{ backgroundImage: `url(${p.img})` }} />
+                      {SPARKS.map((a) => <i key={a} className="spark" style={{ '--a': `${a + (p.idx % 7) * 13}deg` }} />)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="fx-layer" aria-hidden="true">
+                {callout?.big && <div key={`f${callout.id}`} className="flash" />}
+                {floats.map((f) => (
+                  <OText key={f.id} className="float-score" style={{ left: `${f.x}%`, top: `${f.y}%` }}>
+                    {f.text}
+                  </OText>
+                ))}
+                {callout && (
+                  <OText key={callout.id} variant={callout.variant} className="callout">
+                    {callout.text}
+                  </OText>
+                )}
+              </div>
             </div>
 
-            <div className="fx-layer" aria-hidden="true">
-              {callout?.big && <div key={`f${callout.id}`} className="flash" />}
-              {floats.map((f) => (
-                <OText key={f.id} className="float-score" style={{ left: `${f.x}%`, top: `${f.y}%` }}>
-                  {f.text}
-                </OText>
-              ))}
-              {callout && (
-                <OText key={callout.id} variant={callout.variant} className="callout">
-                  {callout.text}
-                </OText>
-              )}
-            </div>
+            <p className="board-hint">
+              {level === 1
+                ? 'Swipe a nad, or tap two neighbours to swap. Five in a row fires a Comet Blast.'
+                : 'Stuck? Wait a moment and a possible move will wiggle.'}
+            </p>
           </div>
-
-          {level === 1 && <p className="board-hint">Drag a nad onto a neighbour to swap. Five in a row fires a Comet Blast.</p>}
         </div>
       </main>
 
@@ -314,13 +418,16 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
             </dl>
 
             <div className="panel-actions">
-              <button type="button" className="gbtn" onClick={resume} autoFocus>
+              <button type="button" className="gbtn" onClick={() => { sfx.tap(); resume(); }} autoFocus>
                 <span className="stroke">Resume</span>
               </button>
               <SubmitScore score={score} level={level} />
-              <button type="button" className="link-btn" onClick={onGoHome}>
-                Quit to home
-              </button>
+              <div className="pause-row">
+                <MuteButton small />
+                <button type="button" className="link-btn" onClick={onGoHome}>
+                  Quit to home
+                </button>
+              </div>
             </div>
           </section>
         </div>

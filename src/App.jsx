@@ -10,7 +10,8 @@ import GameOver from './GameOver';
 import LevelComplete from './LevelComplete';
 import Leaderboard from './Leaderboard';
 import WalletModal from './WalletModal';
-import { OText, Ribbon, Floaters } from './ui';
+import { OText, Ribbon, Floaters, MuteButton } from './ui';
+import { sfx, unlockAudio } from './sound';
 import { identicon, shortAddr } from './ui-utils';
 import './index.css';
 
@@ -164,6 +165,8 @@ function App() {
 
   const startGame = (e) => {
     e.preventDefault();
+    unlockAudio();
+    sfx.tap();
     if (username.trim()) {
       setLevel(1);
       setScreen('PLAYING');
@@ -191,7 +194,7 @@ function App() {
     requestAnimationFrame(() => setScreen('PLAYING'));
   };
 
-  const openLeaderboard = () => { refetchLeaderboard(); setShowLeaderboard(true); };
+  const openLeaderboard = () => { unlockAudio(); sfx.tap(); refetchLeaderboard(); setShowLeaderboard(true); };
 
   // ============ SCREEN 1: HOME ============
   if (screen === 'HOME') {
@@ -209,6 +212,7 @@ function App() {
               </span>
             )}
             <span className="spacer" />
+            <MuteButton small />
             <button type="button" className="rbtn rbtn--gold" onClick={openLeaderboard} aria-label="Leaderboard">
               <Trophy size={24} strokeWidth={2.8} />
             </button>
@@ -229,7 +233,7 @@ function App() {
                 isCooldownActive={isCooldownActive}
                 isCheckingIn={isCheckingIn}
                 timeUntilNextCheckIn={timeUntilNextCheckIn}
-                onCheckIn={() => checkIn()}
+                onCheckIn={() => { unlockAudio(); sfx.chime(); checkIn(); }}
               />
 
               <form className="play-box" onSubmit={startGame} noValidate>
@@ -264,7 +268,7 @@ function App() {
               </div>
               <p className="tagline">Swap the nads, chain big combos and get your score on the Base leaderboard.</p>
               <div className="lobby-cta">
-                <button type="button" className="gbtn gbtn--xl" onClick={() => setShowWalletModal(true)}>
+                <button type="button" className="gbtn gbtn--xl" onClick={() => { unlockAudio(); sfx.tap(); setShowWalletModal(true); }}>
                   <span className="stroke">Connect wallet</span>
                 </button>
                 <p className="fineprint">Free to play. Check-ins and posting scores cost a little gas.</p>

@@ -1,3 +1,6 @@
+import { Volume2, VolumeX } from 'lucide-react';
+import { useMuted, setMuted, unlockAudio, sfx } from './sound';
+
 /** Small presentational pieces shared across screens. */
 
 const STAR_PATH = 'M12 1.6l3.1 6.4 7 1-5.1 4.9 1.2 7L12 17.6l-6.2 3.3 1.2-7L1.9 9l7-1z';
@@ -90,5 +93,25 @@ export function Confetti({ count = 36 }) {
         );
       })}
     </div>
+  );
+}
+
+/** Round sound on/off button. */
+export function MuteButton({ small = false }) {
+  const muted = useMuted();
+  return (
+    <button
+      type="button"
+      className={`rbtn rbtn--blue ${small ? 'rbtn--sm' : ''}`}
+      aria-label={muted ? 'Turn sound on' : 'Turn sound off'}
+      aria-pressed={muted}
+      onClick={() => {
+        unlockAudio();
+        setMuted(!muted);
+        if (muted) sfx.tap();
+      }}
+    >
+      {muted ? <VolumeX size={small ? 20 : 22} strokeWidth={3} /> : <Volume2 size={small ? 20 : 22} strokeWidth={3} />}
+    </button>
   );
 }

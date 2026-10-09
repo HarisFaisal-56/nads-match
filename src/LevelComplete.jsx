@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import SubmitScore from './SubmitScore';
+import { sfx, buzz } from './sound';
 import { MAX_LEVEL } from './constants';
 import { OText, StarShape, Ribbon, Confetti } from './ui';
 import { starsFor } from './ui-utils';
@@ -17,6 +19,14 @@ export default function LevelComplete({ score, targetScore, level, onNextLevel, 
   const stars = starsFor(score, targetScore);
   const isLast = level >= MAX_LEVEL;
   const over = score - targetScore;
+
+  // fanfare, then a ping as each star lands (timed to the CSS star-pop delays)
+  useEffect(() => {
+    sfx.win();
+    buzz([20, 60, 20]);
+    const timers = Array.from({ length: stars }, (_, k) => setTimeout(() => sfx.star(k), 450 + k * 220));
+    return () => timers.forEach(clearTimeout);
+  }, [stars]);
 
   return (
     <main className="scene">
@@ -40,7 +50,7 @@ export default function LevelComplete({ score, targetScore, level, onNextLevel, 
           </p>
 
           <div className="panel-actions">
-            <button type="button" className="gbtn gbtn--xl" onClick={onNextLevel}>
+            <button type="button" className="gbtn gbtn--xl" onClick={() => { sfx.tap(); onNextLevel(); }}>
               <span className="stroke">{isLast ? 'Play again' : 'Next level'}</span>
             </button>
             <SubmitScore score={score} level={level} />
