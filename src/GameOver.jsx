@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import SubmitScore from './SubmitScore';
+import { sfx } from './sound';
 import { CANDY_IMAGES } from './constants';
 import { OText, Ribbon } from './ui';
 
@@ -16,6 +18,8 @@ export default function GameOver({ score, targetScore, level, onRetry, onGoHome 
   const short = Math.max(0, targetScore - score);
   const close = short <= targetScore * 0.25;
 
+  useEffect(() => { sfx.lose(); }, []);
+
   return (
     <main className="scene is-dim">
       <div className="overlay result" style={{ background: 'rgba(30, 10, 84, 0.35)' }}>
@@ -31,7 +35,7 @@ export default function GameOver({ score, targetScore, level, onRetry, onGoHome 
           </p>
 
           <div className="panel-actions">
-            <button type="button" className="gbtn gbtn--xl" onClick={onRetry}>
+            <button type="button" className="gbtn gbtn--xl" onClick={() => { sfx.tap(); onRetry(); }}>
               <span className="stroke">Try again</span>
             </button>
             <SubmitScore score={score} level={level} />
