@@ -64,7 +64,7 @@ function Logo() {
 }
 
 // ── Daily check-in calendar ─────────────────────────────────────
-function DailyCheckIn({ streak, hasCheckedInToday, isCooldownActive, isCheckingIn, timeUntilNextCheckIn, onCheckIn }) {
+function DailyCheckIn({ streak, hasCheckedInToday, isCooldownActive, isCheckingIn, timeUntilNextCheckIn, onCheckIn, wrongNetwork }) {
   const doneToday = hasCheckedInToday || isCooldownActive;
   // progress through the current 7-day week of the streak
   const doneCount = doneToday ? (streak > 0 ? ((streak - 1) % 7) + 1 : 0) : streak % 7;
@@ -119,6 +119,12 @@ function DailyCheckIn({ streak, hasCheckedInToday, isCooldownActive, isCheckingI
           </button>
         )}
       </div>
+
+      {wrongNetwork && !doneToday && !isCheckingIn && (
+        <p className="tx-note is-error" role="alert" style={{ marginTop: 10 }}>
+          Switch your wallet to the Base network to check in.
+        </p>
+      )}
     </section>
   );
 }
@@ -146,7 +152,7 @@ function App() {
   const { entries: leaderboardEntries, isLoading: isLeaderboardLoading, error: leaderboardError, refetch: refetchLeaderboard } = useOnChainLeaderboard();
 
   // Daily check-in (keyed on connected wallet address)
-  const { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive } = useDailyCheckIn(address);
+  const { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive, wrongNetwork } = useDailyCheckIn(address);
 
   // ── Callbacks ──
   const handleWin = useCallback((score, target) => {
@@ -232,6 +238,7 @@ function App() {
                 hasCheckedInToday={hasCheckedInToday}
                 isCooldownActive={isCooldownActive}
                 isCheckingIn={isCheckingIn}
+                wrongNetwork={wrongNetwork}
                 timeUntilNextCheckIn={timeUntilNextCheckIn}
                 onCheckIn={() => { unlockAudio(); sfx.chime(); checkIn(); }}
               />

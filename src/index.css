@@ -1240,6 +1240,11 @@ button {
   80% { rotate: 3deg; }
 }
 
+/* reshuffle: pieces glide to their new cells a little slower than a normal move */
+.board.is-shuffling .piece {
+  transition: transform 0.55s cubic-bezier(0.45, 0, 0.2, 1), scale 0.16s ease, filter 0.2s, opacity 0.2s;
+}
+
 .board.is-paused .piece {
   opacity: 0.35;
   filter: grayscale(0.5);

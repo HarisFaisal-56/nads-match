@@ -1,4 +1,5 @@
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { base } from 'wagmi/chains';
 
 /**
  * The on-chain "submit score" transaction state. Kept as its own hook so a
@@ -8,6 +9,6 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
  */
 export function useScoreTx() {
   const write = useWriteContract();
-  const receipt = useWaitForTransactionReceipt({ hash: write.data });
+  const receipt = useWaitForTransactionReceipt({ hash: write.data, chainId: base.id });
   return { write, receipt };
 }

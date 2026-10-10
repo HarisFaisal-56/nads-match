@@ -69,7 +69,7 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
   const [isPaused, setIsPaused] = useState(false);
 
   const {
-    board, score, moves, targetScore, isProcessing,
+    board, score, moves, targetScore, isProcessing, isShuffling,
     handleDragStart, handleDragEnter, handleDragEnd
   } = useGameLogic(level, onWin, onLose);
 
@@ -89,6 +89,18 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
   const [selected, setSelected] = useState(null);
   const [hint, setHint] = useState(null);
   const [inputTick, setInputTick] = useState(0);
+  const [shuffleSeen, setShuffleSeen] = useState(false);
+
+  if (isShuffling !== shuffleSeen) {
+    setShuffleSeen(isShuffling);
+    if (isShuffling) {
+      const id = `shuffle-${track.nextId}-${moves}`;
+      setCallout({ id, text: 'No moves!', variant: 'pink', big: true });
+      setEvent({ id, kind: 'stuck' });
+      if (selected !== null) setSelected(null);
+      if (hint) setHint(null);
+    }
+  }
 
   if (prev.board !== board || prev.score !== score || prev.moves !== moves) {
     let died = [];
@@ -101,6 +113,7 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
         setPops((p) => [...p.slice(-40), ...died.map((d) => ({ ...d, key: `${stamp}-${d.id}` }))]);
       }
       if (hint) setHint(null);
+      if (isShuffling) setEvent({ id: `shuffled-${res.track.nextId}-${moves}`, kind: 'shuffled' });
     }
 
     let nextCombo = moves !== prev.moves ? 0 : combo;
@@ -130,7 +143,12 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
 
   useEffect(() => {
     if (!event) return;
-    if (event.kind === 'comet') {
+    if (event.kind === 'stuck') {
+      sfx.bonk();
+      buzz(20);
+    } else if (event.kind === 'shuffled') {
+      sfx.swap();
+    } else if (event.kind === 'comet') {
       sfx.comet();
       buzz([30, 40, 70]);
       boardRef.current?.animate?.(SHAKE, { duration: 480, easing: 'ease-out' });
@@ -311,7 +329,7 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
             <div className="board-wrap">
               <div
                 ref={boardRef}
-                className={`board ${isPaused ? 'is-paused' : ''} ${isProcessing ? 'is-busy' : ''}`}
+                className={`board ${isPaused ? 'is-paused' : ''} ${isProcessing ? 'is-busy' : ''} ${isShuffling ? 'is-shuffling' : ''}`}
                 aria-label="Game board"
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
@@ -377,9 +395,11 @@ export default function GameBoard({ level, username, onWin, onLose, onGoHome }) 
             </div>
 
             <p className="board-hint">
-              {level === 1
-                ? 'Swipe a nad, or tap two neighbours to swap. Five in a row fires a Comet Blast.'
-                : 'Stuck? Wait a moment and a possible move will wiggle.'}
+              {isShuffling
+                ? 'No moves left, so the board is shuffling. It won\'t cost you a move.'
+                : level === 1
+                  ? 'Swipe a nad, or tap two neighbours to swap. Five in a row fires a Comet Blast.'
+                  : 'Stuck? Wait a moment and a possible move will wiggle.'}
             </p>
           </div>
         </div>
