@@ -1,6 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { toHex } from 'viem';
+import { base } from 'wagmi/chains';
+import { useEnsureBase } from './useEnsureBase';
 import { GAME_CONTRACT_ADDRESS, GAME_CONTRACT_ABI } from './constants';
 import { BUILDER_CODE } from './wagmi-config';
 
@@ -9,6 +11,11 @@ export function useDailyCheckIn(walletAddress) {
   const [streak, setStreak] = useState(0);
   const [timeUntilNextCheckIn, setTimeUntilNextCheckIn] = useState(null);
   const [isCooldownActive, setIsCooldownActive] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [wrongNetwork, setWrongNetwork] = useState(false);
+  const ensureBase = useEnsureBase();
+  const { chainId } = useAccount();
+  const busy = useRef(false);
 
   const { data: lastCheckInBN, refetch: refetchLastCheckIn } = useReadContract({
     address: GAME_CONTRACT_ADDRESS,
@@ -94,9 +101,10 @@ export function useDailyCheckIn(walletAddress) {
 
   const { isLoading: isWaiting, isSuccess, isError: isReceiptError } = useWaitForTransactionReceipt({
     hash: txHash,
+    chainId: base.id,
   });
 
-  const isCheckingIn = isPending || isWaiting;
+  const isCheckingIn = isPending || isWaiting || isSwitching;
 
   useEffect(() => {
     if (isSuccess) {
@@ -124,9 +132,21 @@ export function useDailyCheckIn(walletAddress) {
   }, [writeError, isReceiptError]);
 
   const checkIn = useCallback(async () => {
-    if (!walletAddress || hasCheckedInToday || isCheckingIn || isCooldownActive) return;
+    if (!walletAddress || hasCheckedInToday || isCheckingIn || isCooldownActive || busy.current) return;
+    busy.current = true;
+    setWrongNetwork(false);
+    const needsSwitch = chainId !== base.id;
+    if (needsSwitch) setIsSwitching(true);
+    const onBase = await ensureBase();
+    if (needsSwitch) setIsSwitching(false);
+    if (!onBase) {
+      setWrongNetwork(true);
+      busy.current = false;
+      return;
+    }
     try {
       await writeContractAsync({
+        chainId: base.id,
         address: GAME_CONTRACT_ADDRESS,
         abi: GAME_CONTRACT_ABI,
         functionName: 'checkIn',
@@ -134,8 +154,10 @@ export function useDailyCheckIn(walletAddress) {
       });
     } catch (err) {
       console.error('Failed to call checkIn:', err);
+    } finally {
+      busy.current = false;
     }
-  }, [walletAddress, hasCheckedInToday, isCheckingIn, isCooldownActive, writeContractAsync]);
+  }, [walletAddress, hasCheckedInToday, isCheckingIn, isCooldownActive, writeContractAsync, ensureBase, chainId]);
 
-  return { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive };
+  return { hasCheckedInToday, streak, checkIn, isCheckingIn, timeUntilNextCheckIn, isCooldownActive, wrongNetwork: wrongNetwork && chainId !== base.id };
 }
