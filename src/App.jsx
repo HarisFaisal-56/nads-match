@@ -12,7 +12,7 @@ import Leaderboard from './Leaderboard';
 import WalletModal from './WalletModal';
 import { OText, Ribbon, Floaters, MuteButton } from './ui';
 import { sfx, unlockAudio } from './sound';
-import { identicon, shortAddr } from './ui-utils';
+import { nadAvatar, shortAddr } from './ui-utils';
 import './index.css';
 
 // where the nads float around the lobby (decorative)
@@ -39,7 +39,7 @@ const PLAYER_FLOATERS = [
 const PEEKS = [
   { img: 6, left: '-30px', top: '-14px', s: '58px', rot: '-16deg', d: '0.3s' },
   { img: 1, right: '-34px', top: '8px', s: '52px', rot: '14deg', d: '1.1s' },
-  { img: 4, right: '-18px', bottom: '-18px', s: '46px', rot: '-8deg', d: '0.7s' },
+  { img: 4, right: '-44px', bottom: '-10px', s: '48px', rot: '10deg', d: '0.7s' },
 ];
 
 function Logo() {
@@ -206,7 +206,7 @@ function App() {
           <div className="lobby-top">
             {isConnected && (
               <span className="pill">
-                <span className="pill-avatar" style={identicon(address)} aria-hidden="true" />
+                <span className="pill-avatar" style={nadAvatar(address)} aria-hidden="true" />
                 <span>{shortAddr(address)}</span>
                 <span className="live-dot" aria-label="Connected" />
               </span>
