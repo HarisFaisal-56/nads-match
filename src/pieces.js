@@ -41,6 +41,13 @@ export function advanceTrack(track, next) {
     changed.length === 2 &&
     prev[changed[0]] === next[changed[1]] &&
     prev[changed[1]] === next[changed[0]];
+  // a reshuffle: full board before and after, same pieces, new places
+  const isShuffle =
+    !isSwap &&
+    changed.length > 2 &&
+    prev.every(Boolean) &&
+    next.every(Boolean) &&
+    sameMultiset(prev, next);
 
   if (allCleared) {
     changed.forEach((i) => {
@@ -70,6 +77,11 @@ export function advanceTrack(track, next) {
         }
       }
     }
+  } else if (isShuffle) {
+    // each piece slides to a new cell that shows the same nad
+    const pool = {};
+    prev.forEach((img, i) => { (pool[img] = pool[img] || []).push(ids[i]); });
+    next.forEach((img, i) => { ids[i] = pool[img].shift(); });
   } else {
     // unknown change (e.g. a fresh board): new pieces wherever it changed
     changed.forEach((i) => {
@@ -86,6 +98,18 @@ export function advanceTrack(track, next) {
   });
 
   return { track: { board: next, ids, born, nextId }, died };
+}
+
+function sameMultiset(a, b) {
+  if (a.length !== b.length) return false;
+  const count = new Map();
+  a.forEach((v) => count.set(v, (count.get(v) || 0) + 1));
+  for (const v of b) {
+    const n = count.get(v);
+    if (!n) return false;
+    count.set(v, n - 1);
+  }
+  return true;
 }
 
 /** Does this board contain a line of 3? (UI-side copy for hints and swap feedback.) */

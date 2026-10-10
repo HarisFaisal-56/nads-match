@@ -19,6 +19,72 @@ const createBoardWithoutMatches = (tileCount = CANDY_IMAGES.length) => {
   return board;
 };
 
+// ── dead-board protection ───────────────────────────────────────
+// With many tile types the board can end up with no swap that makes a match.
+// Swaps that don't match cost no move, so without this the level could never
+// end. These helpers let us start every level, and continue after every
+// cascade, on a board that has at least one valid move.
+
+const hasAnyMatch = (b) => {
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE - 2; col++) {
+      const i = row * BOARD_SIZE + col;
+      if (b[i] && b[i] === b[i + 1] && b[i] === b[i + 2]) return true;
+    }
+  }
+  for (let col = 0; col < BOARD_SIZE; col++) {
+    for (let row = 0; row < BOARD_SIZE - 2; row++) {
+      const i = row * BOARD_SIZE + col;
+      if (b[i] && b[i] === b[i + BOARD_SIZE] && b[i] === b[i + BOARD_SIZE * 2]) return true;
+    }
+  }
+  return false;
+};
+
+export const hasValidMove = (b) => {
+  for (let i = 0; i < b.length; i++) {
+    const right = i % BOARD_SIZE < BOARD_SIZE - 1 ? i + 1 : -1;
+    const down = i + BOARD_SIZE < b.length ? i + BOARD_SIZE : -1;
+    for (const j of [right, down]) {
+      if (j < 0 || !b[i] || !b[j] || b[i] === b[j]) continue;
+      const t = [...b];
+      [t[i], t[j]] = [t[j], t[i]];
+      if (hasAnyMatch(t)) return true;
+    }
+  }
+  return false;
+};
+
+/** A fresh board with no ready-made matches and at least one valid move. */
+const createPlayableBoard = (tileCount) => {
+  let board = createBoardWithoutMatches(tileCount);
+  for (let tries = 0; tries < 200 && !hasValidMove(board); tries++) {
+    board = createBoardWithoutMatches(tileCount);
+  }
+  return board;
+};
+
+/**
+ * Rearrange the same pieces so there's no ready-made match and at least one
+ * valid move. Falls back to a fresh playable board in the (very rare) case no
+ * such arrangement turns up quickly.
+ */
+const shuffleBoard = (b, tileCount) => {
+  const pieces = [...b];
+  for (let tries = 0; tries < 300; tries++) {
+    for (let i = pieces.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+    }
+    if (!hasAnyMatch(pieces) && hasValidMove(pieces)) return [...pieces];
+  }
+  return createPlayableBoard(tileCount);
+};
+
+// how long "No moves" shows before the shuffle, and how long the pieces take to settle
+const SHUFFLE_NOTICE_MS = 700;
+const SHUFFLE_SETTLE_MS = 650;
+
 const findAllMatches = (b) => {
   const matched = new Set();
   let points = 0;
@@ -94,22 +160,42 @@ const applyGravityAndFill = (b, tileCount) => {
 
 export const useGameLogic = (level, onLevelComplete, onGameOver) => {
   const config = getLevelConfig(level);
-  const [board, setBoard] = useState(() => createBoardWithoutMatches(config.tileCount));
+  const [board, setBoard] = useState(() => createPlayableBoard(config.tileCount));
   const [score, setScore] = useState(0);
   const [moves, setMoves] = useState(config.moves);
   const [targetScore] = useState(config.targetScore);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isShuffling, setIsShuffling] = useState(false);
 
   const selectedRef = useRef(null);
   const dragTargetRef = useRef(null);
   const endedRef = useRef(false);
   const scoreRef = useRef(0);
+  const movesRef = useRef(config.moves);
 
   useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { movesRef.current = moves; }, [moves]);
 
   const processCascade = useCallback((currentBoard) => {
     const { matched, points } = findAllMatches(currentBoard);
     if (matched.size === 0) {
+      const levelDecided =
+        endedRef.current ||
+        movesRef.current <= 0 ||
+        (config.targetScore > 0 && scoreRef.current >= config.targetScore);
+      if (!levelDecided && !hasValidMove(currentBoard)) {
+        // stuck: say so, shuffle the same pieces, then hand control back.
+        // Costs no move and gives no points; input stays blocked throughout.
+        setIsShuffling(true);
+        setTimeout(() => {
+          setBoard(shuffleBoard(currentBoard, config.tileCount));
+          setTimeout(() => {
+            setIsShuffling(false);
+            setIsProcessing(false);
+          }, SHUFFLE_SETTLE_MS);
+        }, SHUFFLE_NOTICE_MS);
+        return;
+      }
       setIsProcessing(false);
       return;
     }
@@ -123,7 +209,7 @@ export const useGameLogic = (level, onLevelComplete, onGameOver) => {
       setBoard([...filled]);
       setTimeout(() => processCascade(filled), 280);
     }, 320);
-  }, [config.tileCount]);
+  }, [config.tileCount, config.targetScore]);
 
   useEffect(() => {
     if (isProcessing || endedRef.current) return;
@@ -187,7 +273,7 @@ export const useGameLogic = (level, onLevelComplete, onGameOver) => {
   }, [board, isProcessing, moves, processCascade]);
 
   return {
-    board, score, moves, targetScore, isProcessing,
+    board, score, moves, targetScore, isProcessing, isShuffling,
     handleDragStart, handleDragOver, handleDragEnter, handleDragEnd,
   };
 };
