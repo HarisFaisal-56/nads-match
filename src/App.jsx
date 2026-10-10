@@ -12,7 +12,7 @@ import Leaderboard from './Leaderboard';
 import WalletModal from './WalletModal';
 import { OText, Ribbon, Floaters, MuteButton } from './ui';
 import { sfx, unlockAudio } from './sound';
-import { nadAvatar, shortAddr } from './ui-utils';
+import { identicon, shortAddr } from './ui-utils';
 import './index.css';
 
 // where the nads float around the lobby (decorative)
@@ -206,7 +206,7 @@ function App() {
           <div className="lobby-top">
             {isConnected && (
               <span className="pill">
-                <span className="pill-avatar" style={nadAvatar(address)} aria-hidden="true" />
+                <span className="pill-avatar" style={identicon(address)} aria-hidden="true" />
                 <span>{shortAddr(address)}</span>
                 <span className="live-dot" aria-label="Connected" />
               </span>
