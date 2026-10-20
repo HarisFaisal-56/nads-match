@@ -2,7 +2,7 @@
 
 A Web3 Match-3 puzzle game built on **Base Mainnet**, combining classic puzzle gameplay with on-chain features such as wallet authentication, daily check-in streaks, score submission, and a decentralized leaderboard.
 
-## 🚀 Live Demo
+## 🚀 Live Demo 
 
 https://nads-match.vercel.app
 
